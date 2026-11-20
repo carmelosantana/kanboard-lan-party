@@ -117,6 +117,12 @@ class ManifestValidatorTest extends Base
             'entry query' => ['entry', $set('entry', 'index.html?x=1')],
             // Kills: dropping the `#` check.
             'entry fragment' => ['entry', $set('entry', 'index.html#lp=1')],
+            // Kills: refusing a backslash only as the first character (the contract refuses it anywhere).
+            'entry backslash' => ['entry', $set('entry', 'game\\index.html')],
+            // Kills: the same gap for art.cover.
+            'art.cover backslash' => ['art.cover', $set('art.cover', 'art\\cover.svg')],
+            // Kills: the same gap for art.hero.
+            'art.hero backslash' => ['art.hero', $set('art.hero', 'art\\hero.svg')],
             // Kills: not applying the safe-path rule to art.cover (scheme).
             'art.cover scheme' => ['art.cover', $set('art.cover', 'https://evil.example/c.svg')],
             // Kills: not applying the safe-path rule to art.cover (protocol-relative).

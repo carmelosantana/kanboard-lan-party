@@ -55,15 +55,16 @@ class ManifestValidator
     }
 
     /**
-     * Relative, no `..` segment, no leading slash or backslash (so no `//host`), no `:` (scheme, data: URI,
-     * drive letter), and no `%`, `?` or `#` (browsers decode %2e%2e to `..`; query/fragment change the URL).
+     * Relative, no `..` segment, no leading slash (so no `//host`), and none of `\\` (browsers read it as `/`),
+     * `:` (scheme, data: URI, drive letter), `%`, `?` or `#` (browsers decode %2e%2e to `..`; query/fragment
+     * change the URL) anywhere.
      */
     public static function isSafeRelativePath(string $path): bool
     {
-        if ($path === '' || $path[0] === '/' || $path[0] === '\\' || strpbrk($path, ':%?#') !== false) {
+        if ($path === '' || $path[0] === '/' || strpbrk($path, '\\:%?#') !== false) {
             return false;
         }
-        return ! in_array('..', preg_split('#[/\\\\]#', $path), true);
+        return ! in_array('..', explode('/', $path), true);
     }
 
     private function requireString(array &$errors, array $data, string $field, ?int $max = null, string $prefix = ''): bool
