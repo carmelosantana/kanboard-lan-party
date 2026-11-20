@@ -252,4 +252,54 @@ class ScoreModelTest extends Base
         $this->assertSame('saltroad', $m->mostPlayedSince(0));
         $this->assertNull($m->mostPlayedSince(self::NOW + 1));
     }
+
+    // Kills: a second leaderboard query that returns one row per matching score row instead of one per user,
+    // or picking the level of a later repeat instead of the row where the best was first reached.
+    public function testRepeatedBestRowsGiveOneRowPerUser(): void
+    {
+        for ($i = 0; $i < 40; $i++) {
+            $this->row(2, 500, self::NOW - 1000 + $i, 'pop', 'r'.$i);
+            $this->row(4, 500, self::NOW - 2000 + $i, 'pop', 'c'.$i);
+        }
+        $board = $this->model()->leaderboard($this->game(), 'all', 10, self::NOW);
+        $this->assertSame([[4, 500, 'c0', self::NOW - 2000], [2, 500, 'r0', self::NOW - 1000]],
+            array_map(fn ($r) => [$r['user_id'], $r['score'], $r['level'], $r['date']], $board));
+    }
+
+    // Kills: an unclamped $limit (0 hides the board, huge values return everyone).
+    public function testLimitIsClampedTo1Through100(): void
+    {
+        $db = $this->container['db'];
+        for ($i = 0; $i < 101; $i++) {
+            $db->table('users')->insert(['username' => 'p'.$i, 'role' => Role::APP_USER]);
+            $this->row((int) $db->getLastId(), $i, self::NOW);
+        }
+        $this->assertCount(1, $this->model()->leaderboard($this->game(), 'all', 0, self::NOW));
+        $this->assertCount(100, $this->model()->leaderboard($this->game(), 'all', 500, self::NOW));
+    }
+
+    // Kills: submit()'s rank counting agents ahead, ignoring the tie rule, or ranking an agent submitter.
+    public function testSubmitRankSkipsAgentsAndHonoursTies(): void
+    {
+        $this->row(3, 999, self::NOW - 500); // agent, ahead on score
+        $this->row(4, 80, self::NOW - 400);  // reached 80 first
+        $m = $this->model(LanPartyStubAgentTable::class);
+        $this->assertSame(['accepted' => true, 'rank' => 2, 'best' => 80], $m->submit($this->game(), 2, 80, null, null, null, self::NOW));
+        $this->assertSame(['accepted' => true, 'rank' => 0, 'best' => 999], $m->submit($this->game(), 3, 5, null, null, null, self::NOW));
+        $low = $this->model(LanPartyStubAgentTable::class);
+        $this->assertSame(1, $low->submit($this->game('low', 1000, 'golf'), 2, 3, null, null, null, self::NOW)['rank']);
+        $this->row(4, 2, self::NOW - 10, 'golf');
+        $this->assertSame(2, $low->submit($this->game('low', 1000, 'golf'), 2, 9, null, null, null, self::NOW + 5)['rank']);
+    }
+
+    // Kills: agents steering the launcher hero through mostPlayedSince.
+    public function testMostPlayedSinceIgnoresAgents(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->row(3, 1, self::NOW, 'botgame');
+        }
+        $this->row(2, 1, self::NOW, 'pop');
+        $this->assertSame('pop', $this->model(LanPartyStubAgentTable::class)->mostPlayedSince(self::NOW - 10));
+        $this->assertSame('botgame', $this->model()->mostPlayedSince(self::NOW - 10));
+    }
 }
