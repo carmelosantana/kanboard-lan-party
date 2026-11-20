@@ -545,3 +545,64 @@ test('a level ends by itself once no job can be given and the state repeats', ()
   runOut(t);
   assert.equal(t.tick, 10 * W.TICK_HZ);
 });
+
+// ── Fix round 2: the auto-end never cuts off a level that can still change ───
+
+// Kills: dropping `work` from stuck()'s key (a digger waits a tick between tiles, so its key would repeat).
+test('auto-end lets a digger with the last job finish digging down to the lantern', () => {
+  const s = W.createState(level(['D....', '#####', '#####', 'L....', 'XXXXX'], { jobs: { digger: 1 } }));
+  const w = firstWalker(s);
+  W.step(s); // landing
+  assert.equal(W.assign(s, w.id, 'digger'), true);
+  runOut(s);
+  assert.equal(s.saved, 1);
+});
+
+// Kills: dropping `drift` from stuck()'s key (a floater holds still every other tick on the way down).
+test('auto-end lets a floater with the last job drift all the way down', () => {
+  const rows = ['D......', '###....'];
+  for (let i = 0; i < W.MAX_SAFE_FALL + 4; i++) rows.push('.......');
+  rows.push('......L', '#######');
+  const s = W.createState(level(rows, { jobs: { floater: 1 } }));
+  const w = firstWalker(s);
+  assert.equal(W.assign(s, w.id, 'floater'), true);
+  runOut(s);
+  assert.equal(s.saved, 1);
+});
+
+// Kills: dropping the everyone-has-left-the-door guard (a still blocker repeats its key before the next release).
+test('auto-end waits for every wickling to leave the door', () => {
+  const s = W.createState(level([
+    '...D......',
+    '..........',
+    'L.........',
+    '#######~~#'
+  ], { count: 2, need: 1, rate: 15, jobs: { blocker: 1 } }));
+  const first = firstWalker(s);
+  while (first.y < 2) W.step(s);
+  W.step(s); // landing
+  W.step(s); // one step right
+  assert.equal(W.assign(s, first.id, 'blocker'), true);
+  runOut(s);
+  assert.equal(s.released, 2);
+  assert.equal(s.saved, 1, 'the second wickling turned at the blocker and walked home');
+});
+
+// Kills: a step-up that ignores the ceiling right above the wickling's own head.
+test('a wickling under a low ceiling does not step up through the corner', () => {
+  const s = W.createState(level([
+    'D.......',
+    '........',
+    '..X.....',
+    '...#...L',
+    '########'
+  ], { seconds: 10 }));
+  const w = firstWalker(s);
+  let furthest = 0;
+  while (!s.over) {
+    W.step(s);
+    furthest = Math.max(furthest, w.x);
+  }
+  assert.equal(furthest, 2);
+  assert.equal(s.saved, 0);
+});
