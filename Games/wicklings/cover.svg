@@ -27,12 +27,12 @@
   <path d="M230 436 q10 -4 20 0 t20 0 t20 0 t20 0 t20 0 t20 0" stroke="#8fd3ff" stroke-width="3" fill="none"/>
   <rect x="20" y="200" width="56" height="64" fill="#7a5532"/>
   <path d="M28 264 V222 A20 20 0 0 1 68 222 V264Z" fill="#0c0916"/>
-  <circle cx="372" cy="372.0" r="112.0" fill="url(#glow)"/>
-  <rect x="368.8" y="324.0" width="6.4" height="16.0" fill="#3b2a1a"/>
-  <rect x="352.8" y="340" width="38.400000000000006" height="8.0" fill="#3b2a1a"/>
-  <rect x="356.0" y="348.0" width="32.0" height="44.800000000000004" fill="#ffd98a"/>
-  <path d="M372.0 352.8 Q380.0 374.9 372.0 388.0 Q364.0 374.9 372.0 352.8Z" fill="#ff9a2e"/>
-  <rect x="352.8" y="392.8" width="38.400000000000006" height="11.200000000000001" fill="#3b2a1a"/>
+  <circle cx="372" cy="388" r="112.0" fill="url(#glow)"/>
+  <rect x="368.8" y="340" width="6.4" height="16.0" fill="#3b2a1a"/>
+  <rect x="352.8" y="356" width="38.400000000000006" height="8.0" fill="#3b2a1a"/>
+  <rect x="356.0" y="364" width="32.0" height="44.800000000000004" fill="#ffd98a"/>
+  <path d="M372.0 368.8 Q380.0 390.9 372.0 404 Q364.0 390.9 372.0 368.8Z" fill="#ff9a2e"/>
+  <rect x="352.8" y="408.8" width="38.400000000000006" height="11.200000000000001" fill="#3b2a1a"/>
   <g>
     <rect x="59.2" y="347.6" width="21.6" height="32.4" rx="3.6" fill="#f3e6c8"/>
     <rect x="77.2" y="347.6" width="3.6" height="32.4" fill="#d8c59c"/>
