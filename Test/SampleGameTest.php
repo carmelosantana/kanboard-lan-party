@@ -88,9 +88,13 @@ class SampleGameTest extends Base
         );
         $this->container['lanpartyGames'] = [];
         (new Plugin($this->container))->initialize();
-        $shipped = array_map('basename', glob(self::GAMES.'/*', GLOB_ONLYDIR) ?: []);
-        $this->assertContains('pop', $shipped);
-        $this->assertSame($shipped, array_keys($this->container['gameRegistry']->all()));
+        // Every folder under Games/ registers (none is skipped for a broken rule).
+        $folders = array_map('basename', glob(self::GAMES.'/*', GLOB_ONLYDIR) ?: []);
+        $registered = array_keys($this->container['gameRegistry']->all());
+        sort($folders);
+        sort($registered);
+        $this->assertContains('pop', $registered);
+        $this->assertSame($folders, $registered);
     }
 
     public function testNoShippedGameFileBreaksThePathRules(): void

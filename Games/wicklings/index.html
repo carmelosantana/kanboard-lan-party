@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wicklings</title>
+<link rel="stylesheet" href="wicklings.css?v=0.1.0">
+</head>
+<body>
+<main class="stage">
+  <div id="play" class="play" hidden>
+    <header class="hud">
+      <span id="hud-level" class="hud-level"></span>
+      <span class="hud-stats" id="hud-stats"></span>
+    </header>
+    <canvas id="field" tabindex="0" aria-label="Wicklings playfield. Left and right arrows pick a wickling, 1 to 5 pick a job, Space hands it over. Click a wickling to give it the chosen job."></canvas>
+    <div class="toolbar">
+      <div id="jobs" class="jobs" role="group" aria-label="Jobs"></div>
+      <div class="controls">
+        <button type="button" id="pause" aria-pressed="false" title="Pause (P)">Pause</button>
+        <button type="button" id="fast" aria-pressed="false" title="Fast forward (F)">Fast</button>
+        <button type="button" id="end" title="End the level now and count who is home">End</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="intro" class="card" hidden>
+    <h1>Wicklings</h1>
+    <p>Little candle-folk tumble out of the hatch and march on until something turns them. Bring enough of them to the lantern before their wicks burn down.</p>
+    <p class="hint">Pick a job with 1&ndash;5 or the job buttons, then click a wickling, or choose one with the arrow keys and press Space. P pauses (jobs can be handed out while paused), S steps one tick while paused, F speeds up.</p>
+    <p id="intro-note" class="note"></p>
+    <div id="levels" class="levels" role="group" aria-label="Levels"></div>
+  </section>
+
+  <section id="results" class="card" hidden>
+    <h1 id="result-title">Lantern lit</h1>
+    <p id="result-level" class="note"></p>
+    <dl>
+      <dt>Home</dt><dd id="r-home">0</dd>
+      <dt>Snuffed out</dt><dd id="r-lost">0</dd>
+      <dt>Time bonus</dt><dd id="r-bonus">0</dd>
+      <dt>Score</dt><dd id="r-score">0</dd>
+      <dt>Your best here</dt><dd id="r-best">0</dd>
+    </dl>
+    <div class="actions">
+      <button type="button" id="submit">Submit</button>
+      <button type="button" id="share">Share</button>
+      <button type="button" id="retry">Retry</button>
+      <button type="button" id="next">Next level</button>
+      <button type="button" id="to-levels">Levels</button>
+      <button type="button" id="exit">Exit</button>
+    </div>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite">Loading…</p>
+</main>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="wicklings-sim.js?v=0.1.0"></script>
+<script src="wicklings.js?v=0.1.0"></script>
+</body>
+</html>

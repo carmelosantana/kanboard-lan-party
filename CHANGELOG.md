@@ -18,3 +18,5 @@
   challenges, trading posts, saved journeys.
 - Game `Gusher`: an oil pipe-flow puzzle with ten hand-made levels and seeded endless boards; the seeded piece
   queue gives challengers the same pieces.
+- Original game `Wicklings`: lead candle-folk to the lantern with five jobs across twelve hand-made levels;
+  a deterministic fixed-step simulation, scores in wicks (max 7000), saved level progress.
