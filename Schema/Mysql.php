@@ -19,4 +19,12 @@ function version_1($pdo)
         INDEX lanparty_scores_user_game_idx (user_id, game_slug),
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB CHARSET=utf8mb4');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS lanparty_saves (
+        user_id INT NOT NULL,
+        game_slug VARCHAR(32) NOT NULL,
+        data MEDIUMTEXT,
+        updated_at BIGINT NOT NULL,
+        PRIMARY KEY(user_id, game_slug),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB CHARSET=utf8mb4');
 }

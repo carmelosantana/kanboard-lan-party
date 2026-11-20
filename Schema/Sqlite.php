@@ -18,4 +18,12 @@ function version_1($pdo)
     )');
     $pdo->exec('CREATE INDEX IF NOT EXISTS lanparty_scores_game_score_idx ON lanparty_scores(game_slug, score)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS lanparty_scores_user_game_idx ON lanparty_scores(user_id, game_slug)');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS lanparty_saves (
+        "user_id" INTEGER NOT NULL,
+        "game_slug" VARCHAR(32) NOT NULL,
+        "data" TEXT,
+        "updated_at" INTEGER NOT NULL,
+        PRIMARY KEY(user_id, game_slug),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )');
 }
