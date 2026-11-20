@@ -401,6 +401,41 @@
     return 'ABCDEFGHIJ'[x] + (y + 1);
   }
 
+  // ── Screen layout (canvas units; the browser layer scales the canvas to its frame) ─────────────────────────
+
+  /**
+   * Where the HUD, board and piece queue sit, and their font sizes. `wide` is the 9:8 desktop canvas; `tall` is
+   * a narrower canvas for phones, so it scales down less and its text stays readable, with the level line on a
+   * second HUD row and the NEXT label above the queue.
+   */
+  const LAYOUTS = {
+    wide: {
+      view: { width: 720, height: 640 },
+      hud: { row: 34, line: 32 },
+      board: { top: 56, height: 470, maxCell: 72 },
+      queue: { top: 528, x: 120, first: 72, rest: 54, gap: 22, next: { x: 40, y: 574 }, labelY: 616, lineH: 14 },
+      font: { score: 20, line: 15, clock: 18, next: 13, label: 12 }
+    },
+    tall: {
+      view: { width: 400, height: 520 },
+      hud: { row: 30, line: 58 },
+      board: { top: 72, height: 320, maxCell: 72 },
+      queue: { top: 418, x: 20, first: 60, rest: 46, gap: 24, next: { x: 20, y: 410 }, labelY: 496, lineH: 16 },
+      font: { score: 20, line: 16, clock: 18, next: 14, label: 14 }
+    }
+  };
+  const TALL_BELOW = 600;
+
+  /** The layout for a frame `width` CSS px wide. */
+  function screenLayout(width) {
+    return width < TALL_BELOW ? LAYOUTS.tall : LAYOUTS.wide;
+  }
+
+  /** A piece's queue label, one entry per line. */
+  function pieceLabel(type) {
+    return type === 'tank' ? ['tank', 'junction'] : [type];
+  }
+
   const api = {
     DIRS: DIRS,
     DX: DX,
@@ -435,7 +470,10 @@
     readBest: readBest,
     mergeBest: mergeBest,
     challengeStart: challengeStart,
-    cellName: cellName
+    cellName: cellName,
+    LAYOUTS: LAYOUTS,
+    screenLayout: screenLayout,
+    pieceLabel: pieceLabel
   };
 
   if (typeof module !== 'undefined' && module.exports) {

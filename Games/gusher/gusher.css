@@ -19,10 +19,11 @@ html, body {
 }
 
 #field {
-  /* 9:8, contained in the frame above the 28px status line, leaving 5px all round for the focus ring */
-  width: min(100% - 10px, calc((100vh - 28px - 10px) * 9 / 8));
+  --ar: 9 / 8; /* gusher.js sets the layout's own ratio: 9:8 wide, taller on a phone */
+  /* contained in the frame above the 28px status line, leaving 5px all round for the focus ring */
+  width: min(100% - 10px, calc((100vh - 28px - 10px) * var(--ar)));
   height: auto;
-  aspect-ratio: 9 / 8;
+  aspect-ratio: var(--ar);
   background: #27313a;
   touch-action: none;
 }

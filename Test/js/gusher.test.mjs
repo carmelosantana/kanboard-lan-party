@@ -449,3 +449,45 @@ test('a recorded endless run reaches the endless quota', () => {
   assert.equal(s.score.barrels, run.banked);
   assert.ok(s.score.barrels >= cfg.target);
 });
+
+// ── E2E fix round: the screen layout ────────────────────────────────────────
+
+// Kills: one fixed 720 px layout everywhere, which a 375 px phone scaled down to 7–8 px text.
+test('screenLayout picks a tall layout for narrow frames and a wide one otherwise', () => {
+  assert.equal(G.screenLayout(1280), G.LAYOUTS.wide);
+  assert.equal(G.screenLayout(600), G.LAYOUTS.wide);
+  assert.equal(G.screenLayout(599), G.LAYOUTS.tall);
+  assert.equal(G.screenLayout(375), G.LAYOUTS.tall);
+});
+
+// Kills: canvas text shrunk below a readable size on a phone.
+test('on a 375 px frame every HUD and queue font draws at 12 px or more', () => {
+  const L = G.screenLayout(375);
+  const scale = Math.min(1, 375 / L.view.width);
+  for (const [name, px] of Object.entries(L.font)) {
+    assert.ok(px * scale >= 12, name + ' draws at ' + (px * scale).toFixed(1) + ' px');
+  }
+});
+
+// Kills: queue labels wider than their slot (two "tank junction" labels ran together), or a layout that
+// spills off the canvas.
+test('each layout fits the board, the HUD and the queue, and labels stay inside their slots', () => {
+  const widest = Math.max(...G.PIECES.flatMap((p) => G.pieceLabel(p).map((line) => line.length)));
+  for (const [name, L] of Object.entries(G.LAYOUTS)) {
+    const q = L.queue;
+    assert.ok(L.board.top >= L.hud.line + 8, name + ': board below the HUD');
+    assert.ok(L.board.top + L.board.height <= q.top, name + ': queue below the board');
+    assert.ok(G.MAX_W * Math.min(L.board.maxCell, Math.floor((L.view.width - 20) / G.MAX_W)) <= L.view.width, name);
+    assert.ok(q.x + q.first + (G.QUEUE_SIZE - 1) * (q.rest + q.gap) + q.gap <= L.view.width, name + ': queue fits');
+    // a bold system-ui glyph is under 0.62 em wide on average
+    assert.ok(q.rest + q.gap >= widest * 0.62 * L.font.label, name + ': label fits its slot pitch');
+    const lines = Math.max(...G.PIECES.map((p) => G.pieceLabel(p).length));
+    assert.ok(q.labelY + (lines - 1) * q.lineH <= L.view.height - 4, name + ': labels inside the canvas');
+  }
+});
+
+// Kills: the long tank-junction name drawn on one line under a queue slot.
+test('pieceLabel splits the tank junction over two lines', () => {
+  assert.deepEqual(G.pieceLabel('tank'), ['tank', 'junction']);
+  assert.deepEqual(G.pieceLabel('straight'), ['straight']);
+});

@@ -9,8 +9,6 @@
   const sdk = window.LanParty;
   const doc = document;
 
-  const VIEW = { width: 720, height: 640 };
-  const BOARD = { top: 56, height: 470, maxCell: 72 };
   const THROTTLE = 5;
   const NAMES = { straight: 'straight', bend: 'bend', cross: 'cross', valve: 'valve', tank: 'tank-junction' };
   const C = {
@@ -47,10 +45,23 @@
   let run = null; // {state, layout, speed, lastFrame, over, submit, endedAt}
   let cursor = { x: 0, y: 0 };
 
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = VIEW.width * dpr;
-  canvas.height = VIEW.height * dpr;
-  ctx.scale(dpr, dpr);
+  let screen = null; // G.LAYOUTS entry: the canvas size and where the HUD, board and queue sit
+
+  /** Picks the layout for the frame's width and sizes the canvas to it; a running round is re-laid out. */
+  function fitScreen() {
+    const next = G.screenLayout(doc.documentElement.clientWidth);
+    if (next === screen) return;
+    screen = next;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = screen.view.width * dpr;
+    canvas.height = screen.view.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.style.setProperty('--ar', screen.view.width + ' / ' + screen.view.height);
+    if (run) {
+      run.layout = layoutFor(run.state.cfg);
+      draw(window.performance.now());
+    }
+  }
 
   function say(text) {
     status.textContent = text;
@@ -96,11 +107,13 @@
   // ── A round ────────────────────────────────────────────────────────────────
 
   function layoutFor(cfg) {
-    const cell = Math.min(BOARD.maxCell, Math.floor(Math.min((VIEW.width - 20) / cfg.width, BOARD.height / cfg.height)));
+    const view = screen.view;
+    const board = screen.board;
+    const cell = Math.min(board.maxCell, Math.floor(Math.min((view.width - 20) / cfg.width, board.height / cfg.height)));
     return {
       cell: cell,
-      ox: Math.round((VIEW.width - cell * cfg.width) / 2),
-      oy: BOARD.top + Math.round((BOARD.height - cell * cfg.height) / 2)
+      ox: Math.round((view.width - cell * cfg.width) / 2),
+      oy: board.top + Math.round((board.height - cell * cfg.height) / 2)
     };
   }
 
@@ -549,16 +562,17 @@
 
   function drawQueue() {
     const q = run.state.queue;
-    const y0 = 540;
-    let x = 120;
+    const Q = screen.queue;
+    const font = screen.font;
+    let x = Q.x;
     ctx.fillStyle = C.dim;
-    ctx.font = 'bold 13px system-ui, sans-serif';
+    ctx.font = 'bold ' + font.next + 'px system-ui, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('NEXT', 40, y0 + 46);
+    ctx.fillText('NEXT', Q.next.x, Q.next.y);
     q.forEach(function (piece, i) {
-      const size = i === 0 ? 72 : 54;
-      const top = y0 + (i === 0 ? 0 : 9);
+      const size = i === 0 ? Q.first : Q.rest;
+      const top = Q.top + (Q.first - size) / 2;
       ctx.fillStyle = i === 0 ? '#3a4651' : C.deck;
       ctx.fillRect(x, top, size, size);
       ctx.strokeStyle = i === 0 ? C.amber : C.seam;
@@ -567,38 +581,43 @@
       drawSteel(piece, x + size / 2, top + size / 2, size);
       if (piece.type === 'valve') drawValveWheel(piece, x + size / 2, top + size / 2, size);
       ctx.fillStyle = i === 0 ? C.text : C.dim;
-      ctx.font = (i === 0 ? 'bold ' : '') + '12px system-ui, sans-serif';
+      ctx.font = (i === 0 ? 'bold ' : '') + font.label + 'px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(NAMES[piece.type], x + size / 2, y0 + 88);
-      x += size + 22;
+      G.pieceLabel(piece.type).forEach(function (line, n) {
+        ctx.fillText(line, x + size / 2, Q.labelY + n * Q.lineH);
+      });
+      x += size + Q.gap;
     });
   }
 
   function drawHud() {
     const s = run.state;
+    const view = screen.view;
+    const hud = screen.hud;
+    const font = screen.font;
     ctx.fillStyle = C.text;
-    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.font = 'bold ' + font.score + 'px system-ui, sans-serif';
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
-    ctx.fillText(s.score.barrels + ' barrels', 18, 34);
+    ctx.fillText(s.score.barrels + ' barrels', 18, hud.row);
     ctx.textAlign = 'center';
-    ctx.font = '15px system-ui, sans-serif';
-    ctx.fillText(levelLabel(s.cfg.level) + ' · ' + s.cfg.name + ' · quota ' + s.cfg.target, VIEW.width / 2, 32);
+    ctx.font = font.line + 'px system-ui, sans-serif';
+    ctx.fillText(levelLabel(s.cfg.level) + ' · ' + s.cfg.name + ' · quota ' + s.cfg.target, view.width / 2, hud.line);
     ctx.textAlign = 'right';
-    ctx.font = 'bold 18px system-ui, sans-serif';
+    ctx.font = 'bold ' + font.clock + 'px system-ui, sans-serif';
     const left = G.countdownLeft(s);
     let label = left > 0 ? 'Crude in ' + Math.ceil(left / 1000) + 's' : 'Flowing';
     if (s.over) label = s.sealed ? 'Sealed' : 'Spilled';
     else if (run.speed !== 1) label += ' ×' + run.speed;
     ctx.fillStyle = left > 0 ? C.amber : C.text;
-    ctx.fillText(label, VIEW.width - 18, 34);
+    ctx.fillText(label, view.width - 18, hud.row);
   }
 
   function draw(now) {
     const s = run.state;
     const t = s.clock;
     ctx.fillStyle = '#27313a';
-    ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+    ctx.fillRect(0, 0, screen.view.width, screen.view.height);
     for (let y = 0; y < s.cfg.height; y++) {
       for (let x = 0; x < s.cfg.width; x++) {
         const cell = s.cells[y][x];
@@ -625,8 +644,8 @@
 
   function toCell(e) {
     const rect = canvas.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) * VIEW.width) / rect.width;
-    const py = ((e.clientY - rect.top) * VIEW.height) / rect.height;
+    const px = ((e.clientX - rect.left) * screen.view.width) / rect.width;
+    const py = ((e.clientY - rect.top) * screen.view.height) / rect.height;
     const L = run.layout;
     const x = Math.floor((px - L.ox) / L.cell);
     const y = Math.floor((py - L.oy) / L.cell);
@@ -670,6 +689,9 @@
       toggleThrottle();
     }
   });
+
+  fitScreen();
+  window.addEventListener('resize', fitScreen);
 
   levelPick.addEventListener('change', showBest);
 
