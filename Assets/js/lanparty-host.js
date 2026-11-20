@@ -23,6 +23,8 @@
   };
   var MAX_ARGS = 70000;
   var MAX_PATH = 512;
+  var MAX_IN_FLIGHT = 8;
+  var MAX_SHARE_TEXT = 280;
   var LEVEL_RE = /^[A-Za-z0-9_.-]{0,32}$/;
   var SEED_RE = /^[A-Za-z0-9_.-]{0,64}$/;
 
@@ -46,11 +48,12 @@
   /**
    * A relative path inside the game folder, normalised ("./x.js" -> "x.js"), or null when unsafe: "..",
    * absolute paths, schemes (any ":"), backslashes, percent-encoding (WHATWG URLs read "%2e%2e" as ".."),
-   * query/fragment, whitespace and control characters, and empty segments are all refused.
+   * query/fragment, whitespace and control characters, empty segments and `.php` files (the web server would
+   * execute them) are all refused.
    */
   function normalizeAssetPath(path) {
     if (typeof path !== 'string' || path.length === 0 || path.length > MAX_PATH) return null;
-    if (/[\\%?#:\s\u0000-\u001f\u007f]/.test(path) || path.charAt(0) === '/') return null;
+    if (/[\\%?#:\s\u0000-\u001f\u007f]/.test(path) || path.charAt(0) === '/' || /\.php$/i.test(path)) return null;
     var out = [];
     var parts = path.split('/');
     for (var i = 0; i < parts.length; i++) {
@@ -84,6 +87,16 @@
   function withQuery(url, params) {
     var qs = new URLSearchParams(params).toString();
     return qs === '' ? url : url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
+  }
+
+  // Game text for the clipboard: line breaks and tabs become spaces, other control characters go, max 280 chars.
+  function shareText(text) {
+    return (text || '')
+      .replace(/[\r\n\t\u2028\u2029]+/g, ' ')
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+      .trim()
+      .slice(0, MAX_SHARE_TEXT)
+      .trim();
   }
 
   function optionalString(v) {
@@ -142,11 +155,13 @@
       ready: function () {
         return { player: o.player, game: o.game, challenge: o.challenge || null };
       },
+      // No cookie and no redirects: Kanboard's web server hands a missing non-static file to index.php, and the
+      // signed-in dashboard (CSRF tokens included) must never reach the game.
       asset: function (a) {
         var path = normalizeAssetPath(a.path);
         if (path === null) throw fail('bad_request', 'Unsafe asset path');
-        return request(o.base + path, { method: 'GET', credentials: 'same-origin' }).then(function (res) {
-          if (!res.ok) throw fail(res.status === 404 ? 'missing' : res.status === 403 ? 'forbidden' : 'unavailable');
+        return request(o.base + path, { method: 'GET', credentials: 'omit', redirect: 'error' }).then(function (res) {
+          if (res.redirected || !res.ok) throw fail(res.status === 404 && !res.redirected ? 'missing' : 'unavailable');
           return res.arrayBuffer();
         });
       },
@@ -200,7 +215,8 @@
         if (typeof a.seed === 'string' && a.seed !== '' && SEED_RE.test(a.seed)) params.seed = a.seed;
         params.from = o.player.id;
         var url = withQuery(o.share, params);
-        var text = a.text ? a.text + ' ' + url : url;
+        var clean = shareText(a.text);
+        var text = clean ? clean + ' ' + url : url;
         if (!o.clipboard || typeof o.clipboard.writeText !== 'function') throw fail('unavailable', 'Clipboard unavailable');
         return Promise.resolve()
           .then(function () { return o.clipboard.writeText(text); })
@@ -219,6 +235,8 @@
       }
     }
 
+    var inFlight = 0;
+
     return {
       handleMessage: function (event) {
         var target = o.iframe.contentWindow;
@@ -226,9 +244,16 @@
         var msg = event.data;
         if (!answerable(msg, o.nonce)) return Promise.resolve();
         var bad = validateRequest(msg, o.nonce);
-        var run = bad
-          ? Promise.reject(fail(bad.code))
-          : Promise.resolve().then(function () { return ops[msg.op](msg.args === undefined ? {} : msg.args); });
+        if (!bad && inFlight >= MAX_IN_FLIGHT) bad = { code: 'rate_limited' };
+        var run;
+        if (bad) {
+          run = Promise.reject(fail(bad.code));
+        } else {
+          inFlight++;
+          run = Promise.resolve()
+            .then(function () { return ops[msg.op](msg.args === undefined ? {} : msg.args); })
+            .then(function (r) { inFlight--; return r; }, function (e) { inFlight--; throw e; });
+        }
         return run.then(function (result) {
           // The frame's origin is opaque, so '*' is required; the target window is fixed.
           send(target, { lp: 1, id: msg.id, ok: true, result: result }, result instanceof ArrayBuffer ? [result] : []);
@@ -238,6 +263,18 @@
         });
       }
     };
+  }
+
+  /**
+   * Where Tab (or Shift+Tab) should send focus to stay inside the overlay: wraps at either end and pulls in focus
+   * that is outside the items; null when the browser's own move stays inside.
+   */
+  function focusTrapTarget(items, active, backwards) {
+    var i = items.indexOf(active);
+    if (i === -1) return backwards ? items[items.length - 1] : items[0];
+    if (backwards && i === 0) return items[items.length - 1];
+    if (!backwards && i === items.length - 1) return items[0];
+    return null;
   }
 
   function parse(json, fallback) {
@@ -297,8 +334,22 @@
     });
     function onMessage(event) { return host.handleMessage(event); }
 
+    var trapItems = [fullscreen, exit, iframe];
+    function onTab(e) {
+      if (e.key !== 'Tab') return;
+      var next = focusTrapTarget(trapItems, doc.activeElement, e.shiftKey);
+      if (!next) return;
+      e.preventDefault();
+      next.focus();
+    }
+    // Tabbing out of the iframe never reaches the overlay's keydown, so focus that lands behind it is pulled back.
+    function onFocusIn(e) {
+      if (!e.target || !e.target.closest || e.target.closest('.lp-overlay') !== overlay) fullscreen.focus();
+    }
+
     function close() {
       win.removeEventListener('message', onMessage);
+      doc.removeEventListener('focusin', onFocusIn);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       button.focus();
     }
@@ -308,6 +359,8 @@
     fullscreen.addEventListener('click', function () {
       if (typeof overlay.requestFullscreen === 'function') overlay.requestFullscreen().catch(function () {});
     });
+    overlay.addEventListener('keydown', onTab);
+    doc.addEventListener('focusin', onFocusIn);
     win.addEventListener('message', onMessage);
     root.appendChild(overlay);
     iframe.focus();
@@ -344,6 +397,7 @@
     createHost: createHost,
     openGame: openGame,
     rowNeighbour: rowNeighbour,
+    focusTrapTarget: focusTrapTarget,
     init: init
   };
   if (typeof module !== 'undefined' && module.exports) {

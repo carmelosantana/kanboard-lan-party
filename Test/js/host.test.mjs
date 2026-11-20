@@ -19,10 +19,10 @@ const GAME = { slug: 'arcade', title: 'Arcade', version: '0.1.0' };
 const SHARE = 'http://kb.test/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade';
 
 // A fake response in the shape fetch() resolves with.
-function res(status, body, { json = true } = {}) {
+function res(status, body, { json = true, redirected = false } = {}) {
   const text = json ? JSON.stringify(body) : String(body);
   return {
-    ok: status >= 200 && status < 300, status,
+    ok: status >= 200 && status < 300, status, redirected,
     text: async () => text,
     arrayBuffer: async () => new TextEncoder().encode(text).buffer,
   };
@@ -59,13 +59,14 @@ test('normalizeAssetPath accepts relative paths inside the game folder', () => {
   assert.equal(H.normalizeAssetPath('art/a.png'), 'art/a.png');
   assert.equal(H.normalizeAssetPath('./x.js'), 'x.js');
   assert.equal(H.normalizeAssetPath('levels/./one.json'), 'levels/one.json');
+  assert.equal(H.normalizeAssetPath('notes.php.txt'), 'notes.php.txt');
 });
 
-// Kills: dropping any one of the traversal, absolute, scheme, backslash, encoding or whitespace checks.
+// Kills: dropping any one of the traversal, absolute, scheme, backslash, encoding, whitespace or .php checks.
 test('normalizeAssetPath rejects traversal, absolute paths, schemes and tricks', () => {
   const bad = ['../x', '/x', 'a/../../x', 'a/../x', '..', 'http://x', 'HTTPS://x', '//x', 'data:text/plain,hi',
     'javascript:alert(1)', 'a\\b', '..\\x', '%2e%2e/x', 'a%2fb', 'x?y', 'x#y', ' //x', 'a b', 'a\nb',
-    '', 'a//b', 'art/', '.', null, undefined, 42, {}, 'x'.repeat(513)];
+    '', 'a//b', 'art/', '.', null, undefined, 42, {}, 'x'.repeat(513), 'x.php', 'a/b.PHP', 'shell.pHp'];
   for (const p of bad) assert.equal(H.normalizeAssetPath(p), null, JSON.stringify(p));
 });
 
@@ -187,6 +188,56 @@ test('asset maps a 404 to missing', async () => {
   assert.equal((await send('asset', { path: 'nope.png' })).msg.error.code, 'missing');
 });
 
+// Kills: fetching assets with the session cookie or following redirects. Kanboard's web server sends a missing
+// non-static file to index.php, whose dashboard (with CSRF tokens) would otherwise reach the game.
+test('asset fetches without credentials and refuses redirects', async () => {
+  const { send, calls } = setup({ respond: () => res(200, 'x', { json: false }) });
+  await send('asset', { path: 'levels/one.json' });
+  assert.equal(calls[0].init.credentials, 'omit');
+  assert.equal(calls[0].init.redirect, 'error');
+});
+
+// Kills: handing the game the body of a redirected, 3xx or other non-2xx asset response.
+test('asset rejects redirected and non-2xx responses as unavailable', async () => {
+  const cases = [
+    res(200, '<html>dashboard</html>', { json: false, redirected: true }),
+    res(302, '', { json: false }),
+    res(403, '<html>Forbidden</html>', { json: false }),
+    res(500, 'oops', { json: false }),
+  ];
+  for (const response of cases) {
+    const r = await setup({ respond: () => response }).send('asset', { path: 'x.json' });
+    assert.equal(r.msg.ok, false, String(response.status));
+    assert.equal(r.msg.error.code, 'unavailable', String(response.status));
+  }
+  const thrown = await setup({ fetch: async () => { throw new TypeError('redirect mode is error'); } }).send('asset', { path: 'x.json' });
+  assert.equal(thrown.msg.error.code, 'unavailable');
+});
+
+// Kills: an unbounded number of concurrent ops (a game could flood the endpoints).
+test('more than 8 in-flight ops reject rate_limited before any fetch', async () => {
+  const gates = [];
+  const calls = [];
+  const fetch = (url) => { calls.push(url); return new Promise((resolve) => gates.push(() => resolve(res(200, 'x', { json: false })))); };
+  const { host, frameWin, replies } = setup({ fetch });
+  const msg = (id) => ({ source: frameWin, data: { lp: 1, id, nonce: NONCE, op: 'asset', args: { path: 'a.png' } } });
+  const running = [];
+  for (let id = 1; id <= 8; id++) running.push(host.handleMessage(msg(id)));
+  await new Promise((r) => setImmediate(r));
+  const ninth = host.handleMessage(msg(9));
+  await new Promise((r) => setImmediate(r));
+  assert.equal(calls.length, 8);
+  assert.deepEqual(replies.map((r) => [r.msg.id, r.msg.error && r.msg.error.code]), [[9, 'rate_limited']]);
+  gates.shift()();
+  await running[0];
+  const after = host.handleMessage(msg(10));
+  await new Promise((r) => setImmediate(r));
+  assert.equal(calls.length, 9);
+  gates.forEach((g) => g());
+  await Promise.all([...running, after, ninth]);
+  assert.equal(replies.filter((r) => r.msg.ok).length, 9);
+});
+
 // Kills: dropping file() from the whitelist, or inventing a server call for it in phase 1.
 test('file rejects missing for any id without a network call', async () => {
   const { send, calls } = setup();
@@ -293,6 +344,18 @@ test('share builds the challenge link, copies text + link and resolves {url}', a
 
   const r2 = await send('share', { level: '<b>', seed: 'x'.repeat(65), text: 'Hi' });
   assert.equal(r2.msg.result.url, SHARE + '&from=2');
+});
+
+// Kills: copying raw game text: unbounded length, or control characters/newlines into the user's clipboard.
+test('share strips control characters and caps the text at 280 chars', async () => {
+  const { send, clipboard } = setup();
+  const url = SHARE + '&from=2';
+  await send('share', { text: 'Beat\nme\r\n\tnow\u0007\u001b[31m!\u2028x' });
+  assert.equal(clipboard.written[0], 'Beat me now[31m! x ' + url);
+  await send('share', { text: 'a'.repeat(300) });
+  assert.equal(clipboard.written[1], 'a'.repeat(280) + ' ' + url);
+  await send('share', { text: '\n\u0000' });
+  assert.equal(clipboard.written[2], url);
 });
 
 // Kills: resolving share when the clipboard write failed.
@@ -426,4 +489,41 @@ test('rowNeighbour moves focus along a row with Left/Right only', () => {
   assert.equal(H.rowNeighbour(cards[1], 'ArrowDown'), null);
   const loose = node('a', doc); loose.className = 'lp-card';
   assert.equal(H.rowNeighbour(loose, 'ArrowRight'), null);
+});
+
+// Kills: a focus trap that lets Tab / Shift+Tab leave the overlay at either end, or hijacks Tab mid-cycle.
+test('focusTrapTarget wraps Tab and Shift+Tab within the overlay items', () => {
+  const [a, b, c] = ['fullscreen', 'exit', 'iframe'].map((name) => ({ name }));
+  const items = [a, b, c];
+  assert.equal(H.focusTrapTarget(items, c, false), a);
+  assert.equal(H.focusTrapTarget(items, a, true), c);
+  assert.equal(H.focusTrapTarget(items, a, false), null);
+  assert.equal(H.focusTrapTarget(items, b, true), null);
+  assert.equal(H.focusTrapTarget(items, { name: 'body' }, false), a);
+  assert.equal(H.focusTrapTarget(items, null, true), c);
+});
+
+// Kills: an overlay that never wires the trap, or lets focus escape to the page behind it.
+test('the open overlay traps Tab and pulls stray focus back in; closing releases it', () => {
+  const { doc, win } = fakeDom();
+  const { root, b } = playButton(doc);
+  H.openGame(b, doc, win);
+  const overlay = find(root, (n) => n.className === 'lp-overlay');
+  const iframe = find(root, (n) => n.tagName === 'IFRAME');
+  const full = find(root, (n) => n.className.includes('lp-overlay-fullscreen'));
+  let prevented = 0;
+  doc.activeElement = iframe;
+  overlay.fire('keydown', { key: 'Tab', shiftKey: false, preventDefault() { prevented++; } });
+  assert.equal(doc.activeElement, full);
+  overlay.fire('keydown', { key: 'Tab', shiftKey: true, preventDefault() { prevented++; } });
+  assert.equal(doc.activeElement, iframe);
+  assert.equal(prevented, 2);
+
+  const outside = node('a', doc);
+  root.appendChild(outside);
+  (doc.listeners.focusin || []).forEach((fn) => fn({ target: outside }));
+  assert.equal(doc.activeElement, full);
+
+  find(root, (n) => n.className.includes('lp-overlay-exit')).fire('click', {});
+  assert.equal((doc.listeners.focusin || []).length, 0);
 });
