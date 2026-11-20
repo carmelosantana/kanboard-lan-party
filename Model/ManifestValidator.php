@@ -55,7 +55,7 @@ class ManifestValidator
     }
 
     /**
-     * Relative, no `..` segment, no leading slash (so no `//host`), and none of `\\` (browsers read it as `/`),
+     * Relative, no `..` segment, no leading slash (so no `//host`), and none of `\` (browsers read it as `/`),
      * `:` (scheme, data: URI, drive letter), `%`, `?` or `#` (browsers decode %2e%2e to `..`; query/fragment
      * change the URL) anywhere.
      */
