@@ -414,8 +414,14 @@ class GameRegistryTest extends Base
 
         $this->assertSame($other, $this->container['lanpartyGames'][0]);
         $this->assertInstanceOf(GameRegistry::class, $this->container['gameRegistry']);
-        // The service resolves against PLUGINS_DIR: the fixture (outside it) is scanned and refused, pop lists.
-        $this->assertCount(2, $this->container['gameRegistry']->allForAdmin());
-        $this->assertSame(['pop'], array_keys($this->container['gameRegistry']->all()));
+        // The service resolves against PLUGINS_DIR: the fixture (outside it) is scanned and refused, the
+        // shipped games (pop and any other Games/ folder) list.
+        $shipped = array_map('basename', glob(dirname(__DIR__).'/Games/*', GLOB_ONLYDIR) ?: []);
+        $listed = array_keys($this->container['gameRegistry']->all());
+        sort($shipped);
+        sort($listed);
+        $this->assertContains('pop', $listed);
+        $this->assertCount(1 + count($shipped), $this->container['gameRegistry']->allForAdmin());
+        $this->assertSame($shipped, $listed);
     }
 }
