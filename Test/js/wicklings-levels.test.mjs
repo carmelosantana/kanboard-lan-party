@@ -22,7 +22,7 @@ const SOLUTIONS = {
   '9': [{ id: 0, job: 'climber' }, { id: 0, job: 'floater' }, { id: 1, job: 'climber' }, { id: 1, job: 'floater' }, { id: 2, job: 'climber' }, { id: 2, job: 'floater' }, { id: 3, job: 'climber' }, { id: 3, job: 'floater' }, { id: 4, job: 'climber' }, { id: 4, job: 'floater' }],
   '10': [{ id: 0, at: [21, 9], job: 'blocker' }, { id: 1, at: [26, 9], job: 'bridger' }],
   '11': [{ id: 0, at: [23, 5], job: 'blocker' }, { id: 1, at: [10, 5], job: 'digger' }, { id: 1, at: [15, 11], job: 'bridger' }],
-  '12': [{ id: 0, at: [6, 3], job: 'blocker' }, { id: 1, at: [12, 3], job: 'digger' }, { id: 1, at: [18, 9], job: 'bridger' }]
+  '12': [{ id: 0, at: [6, 3], job: 'blocker' }, { id: 1, at: [15, 3], job: 'digger' }, { id: 1, at: [18, 9], job: 'bridger' }]
 };
 
 /** Plays a level with the triggers above and returns the final state. */
