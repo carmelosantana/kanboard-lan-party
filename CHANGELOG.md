@@ -14,3 +14,5 @@
 - Game files opened outside the launcher stay sandboxed: the SDK stops the page, and `Games/.htaccess` (Apache)
   or the README's nginx snippet serve them with `Content-Security-Policy: sandbox allow-scripts`.
 - Sample game `Pop`, and the game contract for authors in `docs/game-contract.md`.
+- Original game `Saltroad`: lead a salt caravan across a short or long route; seeded event deck for
+  challenges, trading posts, saved journeys.

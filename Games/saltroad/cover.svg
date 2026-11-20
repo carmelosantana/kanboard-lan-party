@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6c27a"/>
+      <stop offset="0.6" stop-color="#f4e0b8"/>
+      <stop offset="1" stop-color="#e8d2a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="600" fill="url(#sky)"/>
+  <circle cx="290" cy="170" r="58" fill="#fff3d6"/>
+  <path d="M0 330 Q90 280 190 320 T400 300 V600 H0 Z" fill="#dcc08a"/>
+  <path d="M0 400 Q120 350 240 395 T400 380 V600 H0 Z" fill="#c9a66b"/>
+  <path d="M0 470 Q140 430 260 470 T400 460 V600 H0 Z" fill="#a8461f" fill-opacity="0.85"/>
+  <g fill="#2b1d12">
+    <path d="M70 392 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <path d="M140 386 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <path d="M210 382 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <rect x="80" y="368" width="14" height="8" fill="#fff8ea"/>
+    <rect x="150" y="362" width="14" height="8" fill="#fff8ea"/>
+    <rect x="220" y="358" width="14" height="8" fill="#fff8ea"/>
+  </g>
+  <path d="M40 420 C120 440 200 410 280 440 S360 470 400 450" fill="none" stroke="#fff8ea" stroke-width="3" stroke-dasharray="8 10"/>
+  <text x="200" y="545" text-anchor="middle" font-family="Georgia, serif" font-size="62" font-weight="700" letter-spacing="4" fill="#fff8ea">SALTROAD</text>
+  <text x="200" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="20" fill="#2b1d12">pans · dunes · wells · the sea</text>
+</svg>

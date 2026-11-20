@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saltroad</title>
+<link rel="stylesheet" href="saltroad.css?v=0.1.0">
+</head>
+<body>
+<main class="app">
+  <header class="bar">
+    <h1 class="brand">Saltroad</h1>
+    <p id="where" class="where"></p>
+    <button type="button" id="camp-exit" class="quiet-button" hidden>Save and exit</button>
+  </header>
+
+  <figure class="map-wrap">
+    <canvas id="map" role="img" aria-label="Route map"></canvas>
+    <figcaption class="legend">
+      <span><b aria-hidden="true">○</b> landmark</span>
+      <span><b aria-hidden="true">●</b> well</span>
+      <span><b aria-hidden="true">■</b> post</span>
+      <span><b aria-hidden="true">▲</b> pass</span>
+      <span><b aria-hidden="true">≈</b> ford</span>
+      <span><b aria-hidden="true">◆</b> market</span>
+      <span><b aria-hidden="true">✚</b> your caravan</span>
+    </figcaption>
+  </figure>
+
+  <div class="columns">
+    <section class="supplies-wrap" aria-labelledby="supplies-title">
+      <h2 id="supplies-title">Supplies</h2>
+      <ul id="supplies" class="supplies"></ul>
+    </section>
+
+    <div class="turn">
+      <section id="camp" class="panel" aria-labelledby="camp-title" hidden>
+        <h2 id="camp-title">Morning in camp</h2>
+        <fieldset>
+          <legend>Pace</legend>
+          <label><input type="radio" name="pace" value="steady" checked> Steady <small id="hint-steady"></small></label>
+          <label><input type="radio" name="pace" value="hard"> Hard <small id="hint-hard"></small></label>
+          <label><input type="radio" name="pace" value="rest"> Rest <small id="hint-rest"></small></label>
+        </fieldset>
+        <fieldset>
+          <legend>Rations</legend>
+          <label><input type="radio" name="rations" value="full" checked> Full <small id="hint-full"></small></label>
+          <label><input type="radio" name="rations" value="half"> Half <small id="hint-half"></small></label>
+          <label><input type="radio" name="rations" value="lean"> Lean <small id="hint-lean"></small></label>
+        </fieldset>
+        <button type="button" id="travel">Break camp</button>
+      </section>
+
+      <section id="event" class="panel" aria-labelledby="event-title" hidden>
+        <h2 id="event-title"></h2>
+        <p id="event-text"></p>
+        <div id="choices" class="choices"></div>
+        <p class="hint">Keys 1–3 pick a choice. Odds are shown before you commit.</p>
+      </section>
+
+      <section id="post" class="panel" aria-labelledby="post-title" hidden>
+        <h2 id="post-title"></h2>
+        <p>Trade salt for supplies. Every bar you sell is a bar you will not deliver.</p>
+        <div id="goods" class="goods"></div>
+        <button type="button" id="leave">Leave the post</button>
+      </section>
+    </div>
+
+    <section class="diary-wrap" aria-labelledby="diary-title">
+      <h2 id="diary-title">Diary</h2>
+      <ol id="diary" class="diary" reversed></ol>
+    </section>
+  </div>
+
+  <section id="intro" class="card" aria-labelledby="intro-title" hidden>
+    <h1 id="intro-title">Saltroad</h1>
+    <p>Lead a salt caravan from the inland pans to the coast. Pick a pace and rations each day, face what the road deals, and trade at the posts. Every bar you deliver counts, and every day you save multiplies it.</p>
+    <fieldset id="route-pick">
+      <legend>Route</legend>
+      <label><input type="radio" name="route" value="1" checked> The Short Road <small>10 waypoints</small></label>
+      <label><input type="radio" name="route" value="2"> The Long Road <small>20 waypoints</small></label>
+    </fieldset>
+    <p id="intro-note" class="note"></p>
+    <div class="actions">
+      <button type="button" id="continue" hidden>Continue journey</button>
+      <button type="button" id="play">Set out</button>
+    </div>
+    <p class="hint">Tab and Enter work everywhere; keys 1–3 answer the road.</p>
+  </section>
+
+  <section id="confirm" class="card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text" hidden>
+    <h1 id="confirm-title">Start a new journey?</h1>
+    <p id="confirm-text"></p>
+    <div class="actions">
+      <button type="button" id="confirm-keep">Keep my journey</button>
+      <button type="button" id="confirm-start">Start anyway</button>
+    </div>
+  </section>
+
+  <section id="results" class="card" aria-labelledby="results-title" hidden>
+    <h1 id="results-title"></h1>
+    <p id="results-line" class="note"></p>
+    <dl>
+      <dt>Score</dt><dd id="final-score">0</dd>
+      <dt>Bars delivered</dt><dd id="final-bars">0</dd>
+      <dt>Days on the road</dt><dd id="final-days">0</dd>
+      <dt>Days bonus</dt><dd id="final-bonus">0</dd>
+      <dt>Your best on this route</dt><dd id="final-best">0</dd>
+    </dl>
+    <div class="actions">
+      <button type="button" id="submit">Submit</button>
+      <button type="button" id="share">Share</button>
+      <button type="button" id="again">Again</button>
+      <button type="button" id="exit">Exit</button>
+    </div>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite">Loading…</p>
+</main>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="saltroad-core.js?v=0.1.0"></script>
+<script src="saltroad.js?v=0.1.0"></script>
+</body>
+</html>
