@@ -22,14 +22,16 @@ The registry rejects (and logs) a game whose folder breaks any of these rules:
 
 | Rule | Why |
 |---|---|
-| The folder sits at `<Plugin>/Games/<slug>` and its name equals the manifest `slug`. | The launcher serves it at `plugins/<Plugin>/Games/<slug>/`. |
+| The folder sits at `<Plugin>/Games/<slug>` inside Kanboard's `plugins/` folder (after resolving `..`), its name equals the manifest `slug`, and `<Plugin>` is letters, digits and `_` only. | The launcher serves it at `plugins/<Plugin>/Games/<slug>/`: the folder checked is the folder served. |
 | No path segment starts with `data` (any case), including the slug folder itself: no `data/`, `database.json`, `Datasets/`. | Kanboard's stock nginx rule `location ~ /data` answers 404 for any URL containing `/data`. |
-| No file ends in `.php`, `.log` or `.sqlite` (any case). | A `.php` file would execute on the server; the others are refused by the web server. |
+| No file name matches `\.(php\d?\|phtml\|phar\|phps\|log\|sqlite)$`, any case: `.php`, `.php5`, `.phtml`, `.phar`, `.phps`, `.log`, `.sqlite`. | PHP handlers execute or print the first five; the web server refuses the others. `asset()` refuses the same list. |
+| No dot-files or dot-folders (`.htaccess`, `.git/`). | A game's own `.htaccess` could switch PHP on, or the sandbox header off. |
 | No symlinks. | Nothing may point outside the folder. |
 
 Paths a game names (`entry`, `art.cover`, `art.hero`, and every `asset()` path) are relative to the game folder
-and may not contain `..`, start with `/`, or contain `\`, `:`, `%`, `?` or `#` anywhere. Keep file names to letters,
-digits, `-`, `_` and `.`.
+and may not contain a `..` segment or start with `/`. A backslash `\` is refused anywhere in the path, not only at
+the start (browsers read it as `/`), and so are `:`, `%`, `?` and `#`. Keep file names to letters, digits, `-`,
+`_` and `.`.
 
 ## Manifest `game.json`
 
@@ -94,16 +96,33 @@ The game page opens in `<iframe sandbox="allow-scripts">`. Its origin is opaque,
   `<link rel="stylesheet">` and `<img src>` with relative URLs load as usual.
 - It cannot open pop-ups, navigate the top page or write to the clipboard; `share()` and `exit()` do those.
 
-Keep scripts in files (no inline `<script>` blocks, no `onclick=` attributes) and make no requests to other
-hosts. The frame has no Content Security Policy today, but a game written this way keeps working if it gets one.
+**The frame is not network-isolated.** The sandbox keeps the game away from cookies and the launcher page, but it
+does not block outbound requests: a game's script can still send anything it has to any host. Treat everything a
+game receives as something that can leave the browser: the player's name and id from `ready()`, and the names on
+`leaderboard()` rows (a user with no display name appears under their username). Only install games you trust
+with that.
+
+Opened outside the launcher (a game URL in a new tab), the SDK stops the page and replaces it with "Open this
+game from LAN Party"; on Apache, `Games/.htaccess` also serves every game file with
+`Content-Security-Policy: sandbox allow-scripts` (the README has the nginx equivalent). Keep scripts in files
+(no inline `<script>` blocks, no `onclick=` attributes) and make no requests to other hosts, so a game keeps
+working under that header and any stricter policy.
 
 ## SDK
 
-Load it with a classic script tag before your own code:
+Load it with a classic script tag as the **first** `<script>` of the entry page, before any of your own code:
 
 ```html
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
 ```
+
+The SDK checks that it runs in the launcher's sandboxed iframe and, when it does not, stops the page before any
+later script runs. A script placed ahead of it would run unchecked, with the Kanboard origin, if the page were
+opened directly.
+
+Add `?v=<version>` to every script and stylesheet URL in your game's HTML: the LAN Party version for the SDK,
+your game's `version` for your own files, bumped on every release. Kanboard's stock nginx config caches `.js`
+and `.css` for 7 days, so an unversioned URL can serve last release's file after an upgrade.
 
 It defines a global `LanParty`. Every call returns a Promise. Call `ready()` first.
 
@@ -113,7 +132,7 @@ It defines a global `LanParty`. Every call returns a Promise. Call `ready()` fir
 | `asset(path)` | `ArrayBuffer` of a file in the game folder | Decode text with `new TextDecoder().decode(buf)`. See "Asset fetches" below. |
 | `file(id)` | `ArrayBuffer` of an admin file slot | Phase 1 serves no slots: always rejects `missing` (`bad_request` if `id` is not a string). |
 | `submitScore({score, level?, seed?, meta?})` | `{ accepted: true, rank, best }` | `score` an integer from 0 to `scoring.max`; `level` at most 32 and `seed` at most 64 characters of `[A-Za-z0-9_.-]`; `meta` any JSON of at most 1 KB. One score per player per game every 5 seconds. `rank` is the player's place on the all-time board (0 for agent users, who are kept off the boards), `best` their best score. |
-| `leaderboard({period?, limit?})` | `[{rank, user_id, name, score, level, date}]` | `period` `all` (default) or `week` (last 7 days); `limit` an integer ≥ 1, default 10, capped at 100. One row per player (their best; a tie goes to whoever got there first). `date` is a Unix timestamp. Agent users are left out when the Agents plugin is installed. |
+| `leaderboard({period?, limit?})` | `[{rank, user_id, name, score, level, date}]` | `period` `all` (default) or `week` (last 7 days); `limit` an integer ≥ 1, default 10, capped at 100. One row per player (their best; a tie goes to whoever got there first). `name` is the display name, or the username when a user has none. `date` is a Unix timestamp. Agent users are left out when the Agents plugin is installed. |
 | `save(obj)` | `{ saved: true }` | Stores one JSON value per player per game, at most 64 KB as JSON; a new save replaces the old one. |
 | `load()` | the saved value, or `null` | |
 | `share({level?, seed?, text})` | `{ url }` | Copies `text` and a challenge link to the player's clipboard. `text` is flattened to one line and cut to 280 characters. A link carries a challenge only when it has both `level` and `seed` (invalid ones are dropped) and the sharer has a score in this game, so share after submitting. |
@@ -124,21 +143,26 @@ Every rejection is `{ code, message }`, with `code` one of:
 | Code | Meaning |
 |---|---|
 | `bad_request` | The arguments are wrong: an unsafe path, a score out of range, malformed level/seed/meta, data that is not JSON. |
-| `forbidden` | The request was refused (for example a stale session). |
+| `forbidden` | The request was refused, for example an expired session (the request was redirected to the login page). |
 | `missing` | The game, asset or file slot does not exist. |
-| `rate_limited` | A score less than 5 seconds after the last one, or more than 8 calls in flight. |
+| `rate_limited` | A score less than 5 seconds after the last one, or more than 8 network calls in flight. |
 | `too_large` | The call's arguments exceed about 70 KB of JSON, or a save exceeds 64 KB. |
 | `unavailable` | The server or browser could not answer, the game has no `scoring`, or the clipboard is blocked. Usually worth a retry. |
 
-At most 8 SDK calls may be pending at once per game; the 9th rejects `rate_limited` until one finishes. Load
-assets one after another or in small batches.
+At most 8 network calls (`asset`, `submitScore`, `leaderboard`, `save`, `load`, `share`) may be pending at once
+per game; the 9th rejects `rate_limited` until one finishes. `ready()`, `file()` and `exit()` never touch the
+network and are always answered. Load assets one after another or in small batches.
 
 ### Asset fetches
 
 `asset(path)` fetches `base_url + path` from the launcher page without cookies and without following
 redirects, so a game can never receive a signed-in Kanboard page. Besides the path rules above, the launcher
-refuses paths with whitespace or control characters, empty segments (`a//b`), a trailing `.php`, or more than
-512 characters (`bad_request`); `./` segments are dropped.
+refuses paths with whitespace or control characters, empty segments (`a//b`), a name on the banned-extension
+list (`.php`, `.php5`, `.phtml`, `.phar`, `.phps`, `.log`, `.sqlite`), or more than 512 characters
+(`bad_request`); `./` segments are dropped.
+
+`asset()` sends no credentials, so on a site behind HTTP Basic auth or an SSO proxy it rejects `unavailable`
+unless the admin exempts the game folders (see the README).
 
 A missing file rejects `missing` only when the web server answers 404 for it, which nginx does for static types
 (images, scripts, styles, fonts). For other names, such as `.json` or `.bin`, Kanboard's front controller answers
@@ -178,8 +202,8 @@ instead and the call rejects `unavailable`. Check that every asset you load ship
 <p id="greeting">Loading…</p>
 <button type="button" id="click">Click</button>
 <button type="button" id="done">Submit and exit</button>
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>
-<script src="hello.js"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="hello.js?v=0.1.0"></script>
 </body>
 </html>
 ```
