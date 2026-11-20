@@ -67,6 +67,7 @@
 
 .lp-launcher .lp-hero-title {
     margin: 0 0 8px;
+    color: var(--lp-text);
     font-size: 2.6em;
     font-weight: 700;
     line-height: 1.1;
@@ -130,6 +131,7 @@
 
 .lp-launcher .lp-row-title {
     margin: 0 0 10px;
+    color: var(--lp-text);
     font-size: 1.25em;
     font-weight: 600;
 }

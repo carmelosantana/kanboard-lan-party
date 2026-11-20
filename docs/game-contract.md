@@ -62,7 +62,7 @@ the start (browsers read it as `/`), and so are `:`, `%`, `?` and `#`. Keep file
 | `kind` | `original` or `engine`. |
 | `licence`, `content_licence` | Required SPDX ids for the code and the art/content; the game page shows both. |
 | `entry` | Required relative path of the page to open. |
-| `art.cover` | Required relative path. `art.hero` is optional. |
+| `art.cover` | Required relative path. `art.hero` is optional. Art carries no text: the launcher draws the title over the card and the title and tagline over the hero, so a baked-in wordmark shows twice. |
 | `players.min`, `players.max` | Integers with 1 ≤ min ≤ max ≤ 16. |
 | `modes` | Non-empty list drawn from `solo`, `async`, `realtime`. |
 | `scoring` | Optional; a game without it has no leaderboard and `submitScore()` rejects `unavailable`. `order` is `high` or `low`; `unit` is a label of at most 12 characters; `max` is an integer ≥ 1. |

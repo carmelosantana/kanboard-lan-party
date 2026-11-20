@@ -97,6 +97,19 @@ class SampleGameTest extends Base
         $this->assertSame($folders, $registered);
     }
 
+    public function testShippedArtCarriesNoText(): void
+    {
+        // The launcher draws the title and tagline over the hero and the title over the card, so art that bakes in
+        // its own wordmark shows the name twice and collides with the launcher's text.
+        foreach (glob(self::GAMES.'/*/game.json') ?: [] as $manifestFile) {
+            $manifest = json_decode((string) file_get_contents($manifestFile), true);
+            foreach ($manifest['art'] as $slot => $file) {
+                $art = (string) file_get_contents(dirname($manifestFile).'/'.$file);
+                $this->assertDoesNotMatchRegularExpression('/<text\b/i', $art, $manifest['slug'].' '.$slot.' has baked-in text');
+            }
+        }
+    }
+
     public function testNoShippedGameFileBreaksThePathRules(): void
     {
         $games = $this->gameFiles();

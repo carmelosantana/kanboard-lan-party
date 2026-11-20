@@ -17,5 +17,4 @@
   <circle cx="110" cy="250" r="40" fill="#5b8def"/>
   <circle cx="95" cy="235" r="10" fill="#ffffff" fill-opacity="0.6"/>
   <circle cx="230" cy="140" r="40" fill="none" stroke="#ffb347" stroke-width="6" stroke-dasharray="10 12"/>
-  <text x="200" y="560" text-anchor="middle" font-family="system-ui, sans-serif" font-size="72" font-weight="800" fill="#ffffff">POP</text>
 </svg>

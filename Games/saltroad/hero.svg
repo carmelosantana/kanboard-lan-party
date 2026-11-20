@@ -18,6 +18,4 @@
     <path d="M460 232 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
   </g>
   <path d="M20 300 C200 320 400 280 560 300 S760 320 840 296" fill="none" stroke="#fff8ea" stroke-width="3" stroke-dasharray="8 10"/>
-  <text x="40" y="100" font-family="Georgia, serif" font-size="64" font-weight="700" letter-spacing="5" fill="#2b1d12">SALTROAD</text>
-  <text x="44" y="136" font-family="Georgia, serif" font-size="22" fill="#2b1d12">Lead a salt caravan from the inland pans to the sea.</text>
 </svg>
