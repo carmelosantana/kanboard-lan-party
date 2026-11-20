@@ -13,10 +13,9 @@ class PluginVersionTest extends Base
         $this->assertSame('0.1.0', $json['version']);
         $this->assertSame($json['version'], (new Plugin($this->container))->getPluginVersion());
         $this->assertSame([], $json['requires']);
-
-        foreach ($json['recommends'] as $recommend) {
-            $this->assertSame(['plugin', 'min_version', 'reason'], array_keys($recommend));
-            $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', $recommend['min_version']);
-        }
+        $this->assertSame(
+            [['plugin' => 'Agents', 'min_version' => '0.5.0', 'reason' => 'keeps agent users off the leaderboards']],
+            $json['recommends']
+        );
     }
 }
