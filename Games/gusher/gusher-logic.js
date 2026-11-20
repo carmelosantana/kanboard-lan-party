@@ -196,7 +196,7 @@
       }
     }
     return {
-      name: 'Endless ' + seed,
+      name: 'Seed ' + seed,
       rows: grid.map(function (r) { return r.join(''); }),
       countdown: 15000,
       fillMs: 1800,

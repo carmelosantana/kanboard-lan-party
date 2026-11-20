@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gusher</title>
+<link rel="stylesheet" href="gusher.css?v=0.1.0">
+</head>
+<body>
+<main class="stage">
+  <canvas id="field" tabindex="0" aria-label="Gusher board: move with the arrow keys or WASD, lay the next piece with Space or Enter, press F to open the throttle"></canvas>
+
+  <section id="intro" class="card" hidden>
+    <h1>Gusher</h1>
+    <p>The well is about to blow. Lay pipe from the queue before the countdown ends, then keep ahead of the crude.</p>
+    <p class="hint">Arrow keys or WASD move, Space or Enter lays the next piece, F opens the throttle. Click or tap a square to lay there. Laying over your own pipe swaps it but lets the crude run on for two seconds. An open end spills and ends the round; ending every line in a depot, or looping it back into itself, seals the well for a bonus.</p>
+    <label class="pick" for="level">Level
+      <select id="level"></select>
+    </label>
+    <p id="intro-best" class="note"></p>
+    <p id="intro-note" class="note"></p>
+    <button type="button" id="play">Play</button>
+  </section>
+
+  <section id="results" class="card" hidden>
+    <h1 id="outcome">Spill!</h1>
+    <dl>
+      <dt>Barrels banked</dt><dd id="final-barrels">0</dd>
+      <dt>Pipe filled</dt><dd id="final-cells">0</dd>
+      <dt>Tanks filled</dt><dd id="final-tanks">0</dd>
+      <dt>Crossings</dt><dd id="final-crossings">0</dd>
+      <dt>Depots reached</dt><dd id="final-depots">0</dd>
+      <dt>Quota</dt><dd id="final-quota">-</dd>
+      <dt>Your best here</dt><dd id="final-best">0</dd>
+    </dl>
+    <div class="actions">
+      <button type="button" id="submit">Submit</button>
+      <button type="button" id="share">Share</button>
+      <button type="button" id="again">Again</button>
+      <button type="button" id="levels">Levels</button>
+      <button type="button" id="exit" class="wide">Exit</button>
+    </div>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite">Loading…</p>
+</main>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="gusher-logic.js?v=0.1.0"></script>
+<script src="gusher.js?v=0.1.0"></script>
+</body>
+</html>
