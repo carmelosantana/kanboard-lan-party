@@ -1,0 +1,14 @@
+{
+  "slug": "doomish",
+  "title": "Doomish",
+  "tagline": "Rip & tear <b>politely</b>",
+  "version": "0.1.0",
+  "kind": "engine",
+  "licence": "GPL-2.0",
+  "content_licence": "BSD-3-Clause",
+  "entry": "play/index.html",
+  "art": { "cover": "cover.png" },
+  "players": { "min": 1, "max": 4 },
+  "modes": ["solo"],
+  "files": []
+}

@@ -1,0 +1,103 @@
+<?php
+namespace Kanboard\Plugin\LanParty\Controller;
+
+use Kanboard\Controller\BaseController;
+use Kanboard\Core\Controller\PageNotFoundException;
+use Kanboard\Plugin\LanParty\Model\ScoreModel;
+
+// GET lanparty (launcher: hero + rows of cards) and GET lanparty/game/:slug (detail page with Play).
+class LauncherController extends BaseController
+{
+    private const WEEK = 7 * 86400;
+
+    public function index(): void
+    {
+        $games = $this->gameRegistry->all();
+        $scores = new ScoreModel($this->container);
+        $userId = $this->userSession->getId();
+
+        $bests = [];
+        foreach ($games as $slug => $game) {
+            $bests[$slug] = $this->best($scores, $game, $userId);
+        }
+
+        $originals = array_filter($games, fn ($g) => $g['kind'] === 'original');
+        $rows = array_filter([
+            t('Continue playing') => array_intersect_key($games, array_flip($scores->playedSlugs($userId))),
+            t('LAN Party Originals') => $originals,
+            t('Engine games') => array_filter($games, fn ($g) => $g['kind'] === 'engine'),
+        ]);
+
+        $hero = $games[$scores->mostPlayedSince(time() - self::WEEK) ?? ''] ?? reset($originals) ?: reset($games) ?: null;
+
+        $this->render('LanParty:launcher/index', [
+            'title' => t('LAN Party'),
+            'hero' => $hero,
+            'rows' => $rows,
+            'bests' => $bests,
+        ]);
+    }
+
+    public function game(): void
+    {
+        $game = $this->gameRegistry->get($this->request->getStringParam('slug'));
+        if ($game === null) {
+            throw new PageNotFoundException();
+        }
+        $scores = new ScoreModel($this->container);
+        $slug = $game['slug'];
+        $endpoint = fn (string $controller, string $action, array $params = []) =>
+            $this->helper->url->to($controller, $action, $params + ['plugin' => 'LanParty']);
+
+        $this->render('LanParty:launcher/game', [
+            'title' => $game['title'],
+            'game' => $game,
+            'board' => [
+                t('All time') => $scores->leaderboard($game, 'all'),
+                t('This week') => $scores->leaderboard($game, 'week'),
+            ],
+            'challenge' => $this->challenge($scores, $game),
+            'csrf' => $this->token->getReusableCSRFToken(),
+            // url->to(), not href(): href() pre-escapes & as &amp;, and the whole JSON is escaped once in the template.
+            'endpoints' => [
+                'score' => $endpoint('ScoreController', 'submit'),
+                'scores' => $endpoint('ScoreController', 'board', ['slug' => $slug]),
+                'save' => $endpoint('SaveController', 'save'),
+                'load' => $endpoint('SaveController', 'load', ['slug' => $slug]),
+            ],
+        ]);
+    }
+
+    // The stylesheet is attached here, not in Plugin::initialize(), so only launcher pages load it.
+    private function render(string $template, array $params): void
+    {
+        $this->hook->on('template:layout:css', ['template' => 'plugins/LanParty/Assets/css/lanparty.css']);
+        $this->response->html($this->helper->layout->app($template, $params));
+    }
+
+    private function best(ScoreModel $scores, array $game, int $userId): ?int
+    {
+        return isset($game['scoring']) ? $scores->best($game['slug'], $userId, $game['scoring']['order']) : null;
+    }
+
+    /** "Beat <name>'s <best>" data when level, seed and an existing `from` user are all in the query. */
+    private function challenge(ScoreModel $scores, array $game): ?array
+    {
+        $level = $this->request->getStringParam('level');
+        $seed = $this->request->getStringParam('seed');
+        $from = $this->request->getIntegerParam('from');
+        if ($level === '' || $seed === '' || $from <= 0) {
+            return null;
+        }
+        $user = $this->userModel->getById($from);
+        if (empty($user)) {
+            return null;
+        }
+        return [
+            'name' => $user['name'] ?: $user['username'],
+            'best' => $this->best($scores, $game, $from),
+            'level' => $level,
+            'seed' => $seed,
+        ];
+    }
+}

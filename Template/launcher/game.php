@@ -1,0 +1,46 @@
+<div class="lp-launcher lp-game">
+    <section class="lp-hero">
+        <img class="lp-hero-art" src="<?= $this->text->e($this->url->dir().$game['base_url'].($game['art']['hero'] ?? $game['art']['cover'])) ?>" alt="">
+        <div class="lp-hero-body">
+            <?php if ($challenge !== null): ?>
+                <p class="lp-challenge">
+                    <?= t('Beat %s’s %s', $challenge['name'], $challenge['best'] ?? t('score')) ?>
+                    <span class="lp-challenge-meta"><?= t('Level') ?> <?= $this->text->e($challenge['level']) ?> · <?= t('Seed') ?> <?= $this->text->e($challenge['seed']) ?></span>
+                </p>
+            <?php endif ?>
+            <h1 class="lp-hero-title"><?= $this->text->e($game['title']) ?></h1>
+            <?php if (! empty($game['tagline'])): ?>
+                <p class="lp-tagline"><?= $this->text->e($game['tagline']) ?></p>
+            <?php endif ?>
+            <button type="button" class="lp-button lp-play"
+                data-lp-slug="<?= $this->text->e($game['slug']) ?>"
+                data-lp-src="<?= $this->text->e($this->url->dir().$game['base_url'].$game['entry']) ?>"
+                data-lp-csrf="<?= $this->text->e($csrf) ?>"
+                data-lp-endpoints="<?= $this->text->e(json_encode($endpoints, JSON_UNESCAPED_SLASHES)) ?>"><?= t('Play') ?></button>
+            <p class="lp-licences">
+                <?= t('Code licence') ?>: <?= $this->text->e($game['licence']) ?> ·
+                <?= t('Content licence') ?>: <?= $this->text->e($game['content_licence']) ?>
+            </p>
+        </div>
+    </section>
+    <section class="lp-boards">
+        <?php foreach ($board as $label => $rows): ?>
+            <div class="lp-board">
+                <h2 class="lp-row-title"><?= $this->text->e($label) ?></h2>
+                <?php if ($rows === []): ?>
+                    <p class="lp-muted"><?= t('No scores yet') ?></p>
+                <?php else: ?>
+                    <table class="lp-board-table">
+                        <?php foreach ($rows as $row): ?>
+                            <tr>
+                                <td class="lp-board-rank"><?= (int) $row['rank'] ?></td>
+                                <td class="lp-board-name"><?= $this->text->e($row['name']) ?></td>
+                                <td class="lp-board-score"><?= (int) $row['score'] ?></td>
+                            </tr>
+                        <?php endforeach ?>
+                    </table>
+                <?php endif ?>
+            </div>
+        <?php endforeach ?>
+    </section>
+</div>

@@ -18,6 +18,12 @@ class Plugin extends Base
         );
         $this->container['lanpartyGames'] = array_merge($this->container['lanpartyGames'] ?? [], $ownGames);
 
+        // Launcher pages (lanparty.css is attached by LauncherController itself, so it loads only there).
+        $this->route->addRoute('lanparty', 'LauncherController', 'index', 'LanParty');
+        $this->route->addRoute('lanparty/game/:slug', 'LauncherController', 'game', 'LanParty');
+        $this->hook->on('template:header:dropdown', ['template' => 'LanParty:header/dropdown']);
+        $this->hook->on('template:dashboard:sidebar', ['template' => 'LanParty:dashboard/sidebar']);
+
         // JSON endpoints for the game bridge (frozen paths).
         $this->route->addRoute('lanparty/score', 'ScoreController', 'submit', 'LanParty');
         $this->route->addRoute('lanparty/scores/:slug', 'ScoreController', 'board', 'LanParty');

@@ -1,0 +1,233 @@
+/* LAN Party launcher. Loaded only on LauncherController pages; every rule is still scoped under .lp-launcher. */
+
+.lp-launcher {
+    --lp-bg: #0b0b0f;
+    --lp-surface: #17171d;
+    --lp-text: #f2f2f5;
+    --lp-muted: #a0a0ab;
+    --lp-accent: #e50914;
+    --lp-focus: #ffffff;
+    --lp-radius: 6px;
+    background: var(--lp-bg);
+    color: var(--lp-text);
+    padding: 0 0 32px;
+    min-height: calc(100vh - 60px);
+    font-size: 14px;
+}
+
+.lp-launcher a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.lp-launcher .lp-empty,
+.lp-launcher .lp-muted {
+    color: var(--lp-muted);
+}
+
+.lp-launcher .lp-empty {
+    padding: 64px 24px;
+    font-size: 1.4em;
+    text-align: center;
+}
+
+/* Hero */
+.lp-launcher .lp-hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: 360px;
+    overflow: hidden;
+    background: var(--lp-surface);
+}
+
+.lp-launcher .lp-hero-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lp-launcher .lp-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to top, var(--lp-bg) 0%, rgba(11, 11, 15, 0.6) 40%, rgba(11, 11, 15, 0) 75%),
+        linear-gradient(to right, rgba(11, 11, 15, 0.85) 0%, rgba(11, 11, 15, 0) 60%);
+}
+
+.lp-launcher .lp-hero-body {
+    position: relative;
+    z-index: 1;
+    max-width: 560px;
+    padding: 32px 24px;
+}
+
+.lp-launcher .lp-hero-title {
+    margin: 0 0 8px;
+    font-size: 2.6em;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.lp-launcher .lp-tagline {
+    margin: 0 0 16px;
+    font-size: 1.15em;
+    color: var(--lp-muted);
+}
+
+.lp-launcher .lp-button {
+    display: inline-block;
+    padding: 10px 28px;
+    border: 0;
+    border-radius: var(--lp-radius);
+    background: var(--lp-text);
+    color: var(--lp-bg);
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.lp-launcher .lp-button:hover {
+    background: #d6d6dc;
+}
+
+.lp-launcher .lp-button:focus-visible,
+.lp-launcher .lp-card:focus-visible {
+    outline: 3px solid var(--lp-focus);
+    outline-offset: 3px;
+}
+
+.lp-launcher .lp-licences {
+    margin: 16px 0 0;
+    font-size: 0.85em;
+    color: var(--lp-muted);
+}
+
+.lp-launcher .lp-challenge {
+    display: inline-block;
+    margin: 0 0 12px;
+    padding: 6px 12px;
+    border-left: 3px solid var(--lp-accent);
+    background: rgba(229, 9, 20, 0.15);
+    font-weight: 700;
+}
+
+.lp-launcher .lp-challenge-meta {
+    display: block;
+    font-weight: 400;
+    font-size: 0.85em;
+    color: var(--lp-muted);
+}
+
+/* Rows of 2:3 cards */
+.lp-launcher .lp-row {
+    padding: 0 24px;
+    margin-top: 24px;
+}
+
+.lp-launcher .lp-row-title {
+    margin: 0 0 10px;
+    font-size: 1.25em;
+    font-weight: 600;
+}
+
+.lp-launcher .lp-row-strip {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 6px 4px 12px;
+    scroll-snap-type: x proximity;
+}
+
+.lp-launcher .lp-card {
+    position: relative;
+    flex: 0 0 160px;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--lp-radius);
+    overflow: hidden;
+    background: var(--lp-surface);
+    scroll-snap-align: start;
+    transition: transform 0.2s ease;
+}
+
+.lp-launcher .lp-card:hover,
+.lp-launcher .lp-card:focus-visible {
+    transform: scale(1.05);
+}
+
+.lp-launcher .lp-card-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.lp-launcher .lp-card-info {
+    position: absolute;
+    inset: auto 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 24px 8px 8px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+}
+
+.lp-launcher .lp-card-title {
+    flex: 1 0 100%;
+    font-weight: 600;
+}
+
+.lp-launcher .lp-badge {
+    padding: 1px 6px;
+    border: 1px solid var(--lp-muted);
+    border-radius: 3px;
+    font-size: 0.75em;
+}
+
+.lp-launcher .lp-card-best {
+    font-size: 0.8em;
+    color: var(--lp-muted);
+}
+
+/* Leaderboards */
+.lp-launcher .lp-boards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.lp-launcher .lp-board-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lp-launcher .lp-board-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--lp-surface);
+}
+
+.lp-launcher .lp-board-rank {
+    width: 2em;
+    color: var(--lp-muted);
+}
+
+.lp-launcher .lp-board-score {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lp-launcher .lp-card {
+        transition: none;
+    }
+
+    .lp-launcher .lp-card:hover,
+    .lp-launcher .lp-card:focus-visible {
+        transform: none;
+    }
+}
