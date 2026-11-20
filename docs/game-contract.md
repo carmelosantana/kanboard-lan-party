@@ -1,0 +1,208 @@
+# LAN Party game contract (v1)
+
+This is the contract between LAN Party and a game. It describes the plugin as built (0.1.0) and is frozen for
+v1: a game that follows it keeps working across 0.x releases. The sample game in `Games/pop` follows every rule
+here and is the easiest place to start.
+
+A game is a folder of static files. LAN Party lists it on the launcher, opens it in a sandboxed iframe, and
+gives it one way to talk to the page: the `LanParty` object from `lanparty-sdk.js`.
+
+## Folder
+
+```
+<Plugin>/Games/<slug>/
+  game.json        the manifest (below)
+  index.html       the entry page (any relative path, named by `entry`)
+  cover.svg        card art, 2:3 portrait (svg, png or jpg)
+  hero.svg         banner art, 21:9 (optional; the cover is used when it is missing)
+  …                scripts, styles, levels, sounds: anything else the game needs
+```
+
+The registry rejects (and logs) a game whose folder breaks any of these rules:
+
+| Rule | Why |
+|---|---|
+| The folder sits at `<Plugin>/Games/<slug>` and its name equals the manifest `slug`. | The launcher serves it at `plugins/<Plugin>/Games/<slug>/`. |
+| No path segment starts with `data` (any case), including the slug folder itself: no `data/`, `database.json`, `Datasets/`. | Kanboard's stock nginx rule `location ~ /data` answers 404 for any URL containing `/data`. |
+| No file ends in `.php`, `.log` or `.sqlite` (any case). | A `.php` file would execute on the server; the others are refused by the web server. |
+| No symlinks. | Nothing may point outside the folder. |
+
+Paths a game names (`entry`, `art.cover`, `art.hero`, and every `asset()` path) are relative to the game folder
+and may not contain `..`, start with `/` or `\`, or contain `:`, `%`, `?` or `#`. Keep file names to letters,
+digits, `-`, `_` and `.`.
+
+## Manifest `game.json`
+
+```json
+{
+  "slug": "pop",
+  "title": "Pop",
+  "tagline": "Thirty seconds. Pop every bubble you can.",
+  "version": "0.1.0",
+  "kind": "original",
+  "licence": "MIT",
+  "content_licence": "CC-BY-4.0",
+  "entry": "index.html",
+  "art": { "cover": "cover.svg", "hero": "hero.svg" },
+  "players": { "min": 1, "max": 1 },
+  "modes": ["solo", "async"],
+  "scoring": { "order": "high", "unit": "pops", "max": 100000 },
+  "files": []
+}
+```
+
+| Field | Rule |
+|---|---|
+| `slug` | Required. `^[a-z][a-z0-9-]{1,31}$`, equal to the folder name, unique across all registered games (the first registration wins; later duplicates are skipped and logged). |
+| `title` | Required, at most 40 characters. |
+| `tagline` | Optional, at most 80 characters. |
+| `version` | Required string. Shown to the game by `ready()`. |
+| `kind` | `original` or `engine`. |
+| `licence`, `content_licence` | Required SPDX ids for the code and the art/content; the game page shows both. |
+| `entry` | Required relative path of the page to open. |
+| `art.cover` | Required relative path. `art.hero` is optional. |
+| `players.min`, `players.max` | Integers with 1 ≤ min ≤ max ≤ 16. |
+| `modes` | Non-empty list drawn from `solo`, `async`, `realtime`. |
+| `scoring` | Optional; a game without it has no leaderboard and `submitScore()` rejects `unavailable`. `order` is `high` or `low`; `unit` is a label of at most 12 characters; `max` is an integer ≥ 1. |
+| `files` | Optional list of admin-supplied file slots `{ "id", "label", "accept": [".wad"], "required": true }` (`id` follows the slug pattern). Originals use `[]`. |
+
+The registry adds `plugin` (the owning plugin) and `base_url` (`plugins/<Plugin>/Games/<slug>/`); anything the
+manifest sets under those names is ignored. A game listed in the config key `lanparty_disabled` (a CSV of
+slugs) is hidden from players.
+
+## Registration
+
+LAN Party registers its own `Games/*` folders. Any other plugin adds its games in `initialize()`:
+
+```php
+$this->container['lanpartyGames'] = array_merge(
+    $this->container['lanpartyGames'] ?? [],
+    [['plugin' => 'MyGames', 'path' => __DIR__.'/Games/snake']]
+);
+```
+
+LAN Party's own folder must be named exactly `LanParty`: every game loads the SDK from
+`../../../LanParty/Assets/js/lanparty-sdk.js`.
+
+## Where the game runs
+
+The game page opens in `<iframe sandbox="allow-scripts">`. Its origin is opaque, which means:
+
+- It has no cookies, no Kanboard session and no CSRF token, and it cannot read the launcher page.
+- `localStorage`, `sessionStorage` and IndexedDB are unavailable; use `save()` / `load()`.
+- `fetch()` or XHR of its own files fails; read data files with `asset()`. Plain `<script src>`,
+  `<link rel="stylesheet">` and `<img src>` with relative URLs load as usual.
+- It cannot open pop-ups, navigate the top page or write to the clipboard; `share()` and `exit()` do those.
+
+Keep scripts in files (no inline `<script>` blocks, no `onclick=` attributes) and make no requests to other
+hosts. The frame has no Content Security Policy today, but a game written this way keeps working if it gets one.
+
+## SDK
+
+Load it with a classic script tag before your own code:
+
+```html
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>
+```
+
+It defines a global `LanParty`. Every call returns a Promise. Call `ready()` first.
+
+| Call | Resolves to | Notes |
+|---|---|---|
+| `ready()` | `{ player: {id, name, avatar_url}, game: {slug, title, version}, challenge: {level, seed} \| null }` | `challenge` is set when the game was opened from a challenge link. |
+| `asset(path)` | `ArrayBuffer` of a file in the game folder | Decode text with `new TextDecoder().decode(buf)`. See "Asset fetches" below. |
+| `file(id)` | `ArrayBuffer` of an admin file slot | Phase 1 serves no slots: always rejects `missing` (`bad_request` if `id` is not a string). |
+| `submitScore({score, level?, seed?, meta?})` | `{ accepted: true, rank, best }` | `score` an integer from 0 to `scoring.max`; `level` at most 32 and `seed` at most 64 characters of `[A-Za-z0-9_.-]`; `meta` any JSON of at most 1 KB. One score per player per game every 5 seconds. `rank` is the player's place on the all-time board (0 for agent users, who are kept off the boards), `best` their best score. |
+| `leaderboard({period?, limit?})` | `[{rank, user_id, name, score, level, date}]` | `period` `all` (default) or `week` (last 7 days); `limit` an integer ≥ 1, default 10, capped at 100. One row per player (their best; a tie goes to whoever got there first). `date` is a Unix timestamp. Agent users are left out when the Agents plugin is installed. |
+| `save(obj)` | `{ saved: true }` | Stores one JSON value per player per game, at most 64 KB as JSON; a new save replaces the old one. |
+| `load()` | the saved value, or `null` | |
+| `share({level?, seed?, text})` | `{ url }` | Copies `text` and a challenge link to the player's clipboard. `text` is flattened to one line and cut to 280 characters. A link carries a challenge only when it has both `level` and `seed` (invalid ones are dropped) and the sharer has a score in this game, so share after submitting. |
+| `exit()` | `null` | Closes the game and returns to the launcher. |
+
+Every rejection is `{ code, message }`, with `code` one of:
+
+| Code | Meaning |
+|---|---|
+| `bad_request` | The arguments are wrong: an unsafe path, a score out of range, malformed level/seed/meta, data that is not JSON. |
+| `forbidden` | The request was refused (for example a stale session). |
+| `missing` | The game, asset or file slot does not exist. |
+| `rate_limited` | A score less than 5 seconds after the last one, or more than 8 calls in flight. |
+| `too_large` | The call's arguments exceed about 70 KB of JSON, or a save exceeds 64 KB. |
+| `unavailable` | The server or browser could not answer, the game has no `scoring`, or the clipboard is blocked. Usually worth a retry. |
+
+At most 8 SDK calls may be pending at once per game; the 9th rejects `rate_limited` until one finishes. Load
+assets one after another or in small batches.
+
+### Asset fetches
+
+`asset(path)` fetches `base_url + path` from the launcher page without cookies and without following
+redirects, so a game can never receive a signed-in Kanboard page. Besides the path rules above, the launcher
+refuses paths with whitespace or control characters, empty segments (`a//b`), a trailing `.php`, or more than
+512 characters (`bad_request`); `./` segments are dropped.
+
+A missing file rejects `missing` only when the web server answers 404 for it, which nginx does for static types
+(images, scripts, styles, fonts). For other names, such as `.json` or `.bin`, Kanboard's front controller answers
+instead and the call rejects `unavailable`. Check that every asset you load ships with the game.
+
+## A minimal game
+
+`Games/hello/game.json`:
+
+```json
+{
+  "slug": "hello",
+  "title": "Hello",
+  "version": "0.1.0",
+  "kind": "original",
+  "licence": "MIT",
+  "content_licence": "CC-BY-4.0",
+  "entry": "index.html",
+  "art": { "cover": "cover.svg" },
+  "players": { "min": 1, "max": 1 },
+  "modes": ["solo"],
+  "scoring": { "order": "high", "unit": "clicks", "max": 1000 },
+  "files": []
+}
+```
+
+`Games/hello/index.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hello</title>
+</head>
+<body>
+<p id="greeting">Loading…</p>
+<button type="button" id="click">Click</button>
+<button type="button" id="done">Submit and exit</button>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>
+<script src="hello.js"></script>
+</body>
+</html>
+```
+
+`Games/hello/hello.js`:
+
+```js
+let clicks = 0;
+
+LanParty.ready().then(function (info) {
+  document.getElementById('greeting').textContent = 'Hello, ' + info.player.name;
+});
+
+document.getElementById('click').addEventListener('click', function () {
+  clicks++;
+});
+
+document.getElementById('done').addEventListener('click', function () {
+  LanParty.submitScore({ score: Math.min(clicks, 1000) })
+    .catch(function (e) { console.warn(e.code, e.message); })
+    .then(function () { return LanParty.exit(); });
+});
+```
+
+Add a `cover.svg` and the game appears on the launcher. For seeded challenges, saves and assets, read
+`Games/pop/pop.js`.
