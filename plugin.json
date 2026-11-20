@@ -1,0 +1,14 @@
+{
+    "name": "LanParty",
+    "description": "A game launcher with leaderboards and rooms for your team.",
+    "version": "0.1.0",
+    "author": "Carmelo Santana",
+    "homepage": "https://github.com/carmelosantana/kanboard-lan-party",
+    "license": "MIT",
+    "kanboard_version": ">=1.2.47",
+    "php_version": ">=8.4",
+    "requires": [],
+    "recommends": [
+        { "plugin": "Agents", "min_version": "0.5.0", "reason": "keeps agent users off the leaderboards" }
+    ]
+}
