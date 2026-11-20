@@ -4,7 +4,7 @@
         <div class="lp-hero-body">
             <?php if ($challenge !== null): ?>
                 <p class="lp-challenge">
-                    <?= t('Beat %s’s %s', $challenge['name'], $challenge['best'] ?? t('score')) ?>
+                    <?= t('Beat %s’s %s', $challenge['name'], $challenge['best']) ?>
                     <span class="lp-challenge-meta"><?= t('Level') ?> <?= $this->text->e($challenge['level']) ?> · <?= t('Seed') ?> <?= $this->text->e($challenge['seed']) ?></span>
                 </p>
             <?php endif ?>
@@ -16,7 +16,12 @@
                 data-lp-slug="<?= $this->text->e($game['slug']) ?>"
                 data-lp-src="<?= $this->text->e($this->url->dir().$game['base_url'].$game['entry']) ?>"
                 data-lp-csrf="<?= $this->text->e($csrf) ?>"
-                data-lp-endpoints="<?= $this->text->e(json_encode($endpoints, JSON_UNESCAPED_SLASHES)) ?>"><?= t('Play') ?></button>
+                data-lp-endpoints="<?= $this->text->e(json_encode($endpoints, JSON_UNESCAPED_SLASHES)) ?>"
+                data-lp-base="<?= $this->text->e($this->url->dir().$game['base_url']) ?>"
+                data-lp-game="<?= $this->text->e(json_encode(['slug' => $game['slug'], 'title' => $game['title'], 'version' => $game['version']], JSON_UNESCAPED_SLASHES)) ?>"
+                data-lp-player="<?= $this->text->e(json_encode($player, JSON_UNESCAPED_SLASHES)) ?>"
+                data-lp-share="<?= $this->text->e($share) ?>"
+                <?php if ($challenge !== null): ?>data-lp-level="<?= $this->text->e($challenge['level']) ?>" data-lp-seed="<?= $this->text->e($challenge['seed']) ?>"<?php endif ?>><?= t('Play') ?></button>
             <p class="lp-licences">
                 <?= t('Code licence') ?>: <?= $this->text->e($game['licence']) ?> ·
                 <?= t('Content licence') ?>: <?= $this->text->e($game['content_licence']) ?>

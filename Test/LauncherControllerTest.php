@@ -112,13 +112,18 @@ class LauncherControllerTest extends Base
         $this->assertMatchesRegularExpression('/class="lp-hero".*?<h1[^>]*>Arcade</s', $this->render('index'));
     }
 
-    // Kills: a badge that prints "1–1P" or a hyphen instead of the en dash.
+    // Kills: a badge that prints "1–1P"/"2–2P" when min == max, or a hyphen instead of the en dash.
     public function testPlayersBadge(): void
     {
         $this->withEngine();
         $html = $this->render('index');
         $this->assertStringContainsString('>1P<', $html);
         $this->assertStringContainsString('>1–4P<', $html);
+
+        $game = $this->container['gameRegistry']->get('arcade');
+        $game['players'] = ['min' => 2, 'max' => 2];
+        $card = $this->container['template']->render('LanParty:launcher/card', ['game' => $game, 'best' => null]);
+        $this->assertStringContainsString('>2P<', $card);
     }
 
     // Kills: rendering a page (or a disabled game) for a slug the registry does not list.
@@ -172,19 +177,85 @@ class LauncherControllerTest extends Base
         $this->assertSame(2, substr_count($html, '<td class="lp-board-score">640</td>'));
     }
 
-    // Kills: a banner shown for an unknown user, one without the challenger's best, or unescaped level/seed.
+    /** Play button data-lp-* attribute => decoded value, or null when absent. */
+    private function playAttr(string $html, string $name): ?string
+    {
+        return preg_match('/<button[^>]*class="lp-button lp-play"[^>]*\sdata-lp-'.$name.'="([^"]*)"/s', $html, $m)
+            ? html_entity_decode($m[1], ENT_QUOTES)
+            : null;
+    }
+
+    // Kills: a banner shown for an unknown user, for a user without a best score (?from=N reading arbitrary
+    // names), without level or seed, or for a level/seed outside the score regexes.
     public function testChallengeBanner(): void
     {
         $game = $this->container['gameRegistry']->get('arcade');
         (new ScoreModel($this->container))->submit($game, 2, 640, null, null, null);
-        $html = $this->render('game', ['slug' => 'arcade', 'level' => '<i>x</i>', 'seed' => 's1', 'from' => '2']);
+        $html = $this->render('game', ['slug' => 'arcade', 'level' => 'l-1.x_', 'seed' => 's1', 'from' => '2']);
         $this->assertStringContainsString('Beat Amy’s 640', $html);
-        $this->assertStringContainsString('&lt;i&gt;x&lt;/i&gt;', $html);
-        $this->assertStringNotContainsString('<i>x</i>', $html);
+        $this->assertStringContainsString('l-1.x_', $html);
         $this->assertCspSafe($html);
 
-        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'level' => '1', 'seed' => 's', 'from' => '99']));
-        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'from' => '2']));
+        $none = [
+            'unknown user' => ['level' => '1', 'seed' => 's', 'from' => '99'],
+            'no level/seed' => ['from' => '2'],
+            'no seed' => ['level' => '1', 'from' => '2'],
+            'markup level' => ['level' => '<i>x</i>', 'seed' => 's1', 'from' => '2'],
+            'long level' => ['level' => str_repeat('a', 33), 'seed' => 's1', 'from' => '2'],
+            'long seed' => ['level' => '1', 'seed' => str_repeat('a', 65), 'from' => '2'],
+            'bad seed' => ['level' => '1', 'seed' => 'a b', 'from' => '2'],
+        ];
+        foreach ($none as $why => $get) {
+            $out = $this->render('game', ['slug' => 'arcade'] + $get);
+            $this->assertStringNotContainsString('Beat ', $out, $why);
+            $this->assertNull($this->playAttr($out, 'level'), $why);
+        }
+        $this->assertStringContainsString('Beat Amy’s 640', $this->render('game', ['slug' => 'arcade', 'level' => str_repeat('a', 32), 'seed' => str_repeat('b', 64), 'from' => '2']));
+
+        // A real user with no best for this game (admin, id 1) gives no banner: names are only shown off the board.
+        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'level' => '1', 'seed' => 's', 'from' => '1']));
+        // An unscored game never has a best, so never a banner.
+        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'saltroad', 'level' => '1', 'seed' => 's', 'from' => '2']));
+    }
+
+    // Kills: dropping or mis-building any host attribute (base, game, player, share), or emitting level/seed
+    // without a valid challenge.
+    public function testPlayButtonHostAttributes(): void
+    {
+        $this->withEngine();
+        $html = $this->render('game', ['slug' => 'doomish']);
+        $this->assertSame('/plugins/engines/Games/doomish/', $this->playAttr($html, 'base'));
+        $this->assertSame(['slug' => 'doomish', 'title' => 'Doomish', 'version' => '0.1.0'], json_decode($this->playAttr($html, 'game'), true));
+        $this->assertSame(['id' => 2, 'name' => 'Amy', 'avatar_url' => null], json_decode($this->playAttr($html, 'player'), true));
+        $this->assertSame('http://localhost/?controller=LauncherController&action=game&plugin=LanParty&slug=doomish', $this->playAttr($html, 'share'));
+        $this->assertNull($this->playAttr($html, 'level'));
+        $this->assertNull($this->playAttr($html, 'seed'));
+
+
+        $game = $this->container['gameRegistry']->get('arcade');
+        (new ScoreModel($this->container))->submit($game, 2, 640, null, null, null);
+        $html = $this->render('game', ['slug' => 'arcade', 'level' => 'l2', 'seed' => 'abc', 'from' => '2']);
+        $this->assertSame('l2', $this->playAttr($html, 'level'));
+        $this->assertSame('abc', $this->playAttr($html, 'seed'));
+    }
+
+    // Kills: a share URL built from the request host when config application_url is set.
+    public function testShareUrlUsesApplicationUrl(): void
+    {
+        $this->container['configModel']->save(['application_url' => 'https://kb.example.test/']);
+        $this->assertSame(
+            'https://kb.example.test/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade',
+            $this->playAttr($this->render('game', ['slug' => 'arcade']), 'share')
+        );
+    }
+
+    // Kills: injecting lanparty-host.js sitewide, or not at all on launcher pages.
+    public function testHostJsOnlyOnLauncherPages(): void
+    {
+        $js = 'plugins/LanParty/Assets/js/lanparty-host.js';
+        $this->assertStringNotContainsString($js, $this->container['helper']->hook->asset('js', 'template:layout:js'));
+        $this->assertStringContainsString($js, $this->render('index'));
+        $this->assertStringContainsString($js, $this->render('game', ['slug' => 'arcade']));
     }
 
     // Kills: injecting lanparty.css sitewide instead of only on launcher pages.

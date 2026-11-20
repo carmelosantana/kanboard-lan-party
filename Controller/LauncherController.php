@@ -58,6 +58,9 @@ class LauncherController extends BaseController
             ],
             'challenge' => $this->challenge($scores, $game),
             'csrf' => $this->token->getReusableCSRFToken(),
+            'player' => $this->player(),
+            // Absolute (application_url, else the request host) so a copied challenge link works anywhere.
+            'share' => $this->helper->url->to('LauncherController', 'game', ['plugin' => 'LanParty', 'slug' => $slug], '', true),
             // url->to(), not href(): href() pre-escapes & as &amp;, and the whole JSON is escaped once in the template.
             'endpoints' => [
                 'score' => $endpoint('ScoreController', 'submit'),
@@ -68,10 +71,11 @@ class LauncherController extends BaseController
         ]);
     }
 
-    // The stylesheet is attached here, not in Plugin::initialize(), so only launcher pages load it.
+    // The stylesheet and host bridge are attached here, not in Plugin::initialize(), so only launcher pages load them.
     private function render(string $template, array $params): void
     {
         $this->hook->on('template:layout:css', ['template' => 'plugins/LanParty/Assets/css/lanparty.css']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/LanParty/Assets/js/lanparty-host.js']);
         $this->response->html($this->helper->layout->app($template, $params));
     }
 
@@ -80,24 +84,31 @@ class LauncherController extends BaseController
         return isset($game['scoring']) ? $scores->best($game['slug'], $userId, $game['scoring']['order']) : null;
     }
 
-    /** "Beat <name>'s <best>" data when level, seed and an existing `from` user are all in the query. */
+    /** The signed-in player as the SDK's ready() reports it (no avatar in phase 1). */
+    private function player(): array
+    {
+        $user = $this->userSession->getAll();
+        return ['id' => (int) $user['id'], 'name' => ($user['name'] ?? '') ?: $user['username'], 'avatar_url' => null];
+    }
+
+    /**
+     * "Beat <name>'s <best>" data when level and seed match the score regexes and the `from` user has a best
+     * score for this game. Requiring a best means ?from=N only ever shows a name the leaderboard already shows.
+     */
     private function challenge(ScoreModel $scores, array $game): ?array
     {
         $level = $this->request->getStringParam('level');
         $seed = $this->request->getStringParam('seed');
         $from = $this->request->getIntegerParam('from');
-        if ($level === '' || $seed === '' || $from <= 0) {
+        if ($level === '' || $seed === '' || $from <= 0
+            || ! preg_match(ScoreModel::LEVEL_RE, $level) || ! preg_match(ScoreModel::SEED_RE, $seed)) {
             return null;
         }
-        $user = $this->userModel->getById($from);
+        $best = $this->best($scores, $game, $from);
+        $user = $best === null ? null : $this->userModel->getById($from);
         if (empty($user)) {
             return null;
         }
-        return [
-            'name' => $user['name'] ?: $user['username'],
-            'best' => $this->best($scores, $game, $from),
-            'level' => $level,
-            'seed' => $seed,
-        ];
+        return ['name' => $user['name'] ?: $user['username'], 'best' => $best, 'level' => $level, 'seed' => $seed];
     }
 }

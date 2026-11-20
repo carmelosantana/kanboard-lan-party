@@ -12,8 +12,8 @@ class ScoreModel extends Base
     public const META_MAX = 1024;
     public const LIMIT_MAX = 100;
     // Level fits VARCHAR(32), seed VARCHAR(64); both use the spec's character set.
-    private const LEVEL_RE = '/^[A-Za-z0-9_.-]{0,32}$/D';
-    private const SEED_RE = '/^[A-Za-z0-9_.-]{0,64}$/D';
+    public const LEVEL_RE = '/^[A-Za-z0-9_.-]{0,32}$/D';
+    public const SEED_RE = '/^[A-Za-z0-9_.-]{0,64}$/D';
 
     private AgentFilter $agentFilter;
 

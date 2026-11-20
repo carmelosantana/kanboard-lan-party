@@ -1,0 +1,355 @@
+/*
+ * LAN Party host bridge (launcher page side). Plain ES2017, no dependencies, CSP-clean.
+ *
+ * Play opens a full-viewport overlay holding <iframe sandbox="allow-scripts"> (opaque origin: never
+ * allow-same-origin). The game talks to this page only through postMessage:
+ *   request  {lp: 1, id, nonce, op, args}
+ *   reply    {lp: 1, id, ok: true, result} | {lp: 1, id, ok: false, error: {code, message}}
+ * A message is answered only when it comes from the game's iframe window and carries the nonce this page put
+ * in the iframe's URL fragment (#lp=<nonce>). The game never sees the CSRF token or the session.
+ */
+(function () {
+  'use strict';
+
+  var OPS = ['ready', 'asset', 'file', 'submitScore', 'leaderboard', 'save', 'load', 'share', 'exit'];
+  var CODES = ['bad_request', 'forbidden', 'missing', 'rate_limited', 'too_large', 'unavailable'];
+  var MESSAGES = {
+    bad_request: 'Bad request',
+    forbidden: 'Forbidden',
+    missing: 'Not found',
+    rate_limited: 'Too many requests',
+    too_large: 'Request too large',
+    unavailable: 'Service unavailable'
+  };
+  var MAX_ARGS = 70000;
+  var MAX_PATH = 512;
+  var LEVEL_RE = /^[A-Za-z0-9_.-]{0,32}$/;
+  var SEED_RE = /^[A-Za-z0-9_.-]{0,64}$/;
+
+  function isObject(x) {
+    return x !== null && typeof x === 'object' && !Array.isArray(x);
+  }
+
+  function validId(id) {
+    return (typeof id === 'string' && id.length > 0 && id.length <= 64) ||
+      (typeof id === 'number' && Number.isSafeInteger(id) && id >= 0);
+  }
+
+  function fail(code, message) {
+    return { code: code, message: message || MESSAGES[code] };
+  }
+
+  function asError(e) {
+    return isObject(e) && CODES.indexOf(e.code) !== -1 ? fail(e.code, typeof e.message === 'string' ? e.message : '') : fail('unavailable');
+  }
+
+  /**
+   * A relative path inside the game folder, normalised ("./x.js" -> "x.js"), or null when unsafe: "..",
+   * absolute paths, schemes (any ":"), backslashes, percent-encoding (WHATWG URLs read "%2e%2e" as ".."),
+   * query/fragment, whitespace and control characters, and empty segments are all refused.
+   */
+  function normalizeAssetPath(path) {
+    if (typeof path !== 'string' || path.length === 0 || path.length > MAX_PATH) return null;
+    if (/[\\%?#:\s\u0000-\u001f\u007f]/.test(path) || path.charAt(0) === '/') return null;
+    var out = [];
+    var parts = path.split('/');
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i] === '.') continue;
+      if (parts[i] === '' || parts[i] === '..') return null;
+      out.push(parts[i]);
+    }
+    return out.length ? out.join('/') : null;
+  }
+
+  /** null when the request is well-formed for this nonce, else {code}. */
+  function validateRequest(msg, expectedNonce) {
+    if (!isObject(msg) || msg.lp !== 1 || !validId(msg.id)) return { code: 'bad_request' };
+    if (typeof expectedNonce !== 'string' || expectedNonce === '' || msg.nonce !== expectedNonce) return { code: 'forbidden' };
+    if (OPS.indexOf(msg.op) === -1) return { code: 'bad_request' };
+    if (msg.args !== undefined && !isObject(msg.args)) return { code: 'bad_request' };
+    var json;
+    try {
+      json = JSON.stringify(msg.args === undefined ? {} : msg.args);
+    } catch (e) {
+      return { code: 'bad_request' };
+    }
+    return json.length > MAX_ARGS ? { code: 'too_large' } : null;
+  }
+
+  // Only a message from the right window, with the right nonce and an id to echo, gets any reply at all.
+  function answerable(msg, nonce) {
+    return isObject(msg) && msg.lp === 1 && validId(msg.id) && typeof nonce === 'string' && nonce !== '' && msg.nonce === nonce;
+  }
+
+  function withQuery(url, params) {
+    var qs = new URLSearchParams(params).toString();
+    return qs === '' ? url : url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
+  }
+
+  function optionalString(v) {
+    return v === undefined || v === null || typeof v === 'string';
+  }
+
+  /**
+   * The message handler for one open game. o: {iframe, nonce, endpoints: {score, scores, save, load}, csrf,
+   * base, game: {slug, title, version}, player: {id, name, avatar_url}, challenge: {level, seed}|null,
+   * share (game page URL), fetch, clipboard, onExit}.
+   */
+  function createHost(o) {
+    function request(url, init) {
+      return Promise.resolve()
+        .then(function () { return o.fetch(url, init); })
+        .then(null, function () { throw fail('unavailable'); });
+    }
+
+    // Every JSON endpoint: server {error: {code, message}} passes through; a non-JSON error (Kanboard's HTML
+    // 403 page for a missing CSRF token, a proxy 5xx) maps by status.
+    function json(url, init) {
+      return request(url, init).then(function (res) {
+        return res.text().then(function (text) {
+          var body;
+          try { body = JSON.parse(text); } catch (e) { body = undefined; }
+          if (!res.ok) {
+            var err = isObject(body) && isObject(body.error) ? body.error : null;
+            if (err && CODES.indexOf(err.code) !== -1) throw fail(err.code, typeof err.message === 'string' ? err.message : '');
+            throw fail(res.status === 403 ? 'forbidden' : 'unavailable');
+          }
+          if (!isObject(body)) throw fail('unavailable');
+          return body;
+        });
+      });
+    }
+
+    function get(url) {
+      return json(url, { method: 'GET', credentials: 'same-origin' });
+    }
+
+    function post(url, fields) {
+      var body = new URLSearchParams();
+      Object.keys(fields).forEach(function (k) {
+        if (fields[k] !== undefined && fields[k] !== null) body.append(k, String(fields[k]));
+      });
+      body.append('csrf_token', o.csrf);
+      return json(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+    }
+
+    var ops = {
+      ready: function () {
+        return { player: o.player, game: o.game, challenge: o.challenge || null };
+      },
+      asset: function (a) {
+        var path = normalizeAssetPath(a.path);
+        if (path === null) throw fail('bad_request', 'Unsafe asset path');
+        return request(o.base + path, { method: 'GET', credentials: 'same-origin' }).then(function (res) {
+          if (!res.ok) throw fail(res.status === 404 ? 'missing' : res.status === 403 ? 'forbidden' : 'unavailable');
+          return res.arrayBuffer();
+        });
+      },
+      file: function (a) {
+        if (typeof a.id !== 'string') throw fail('bad_request');
+        throw fail('missing', 'No file in slot ' + a.id); // phase 1: no admin file slots are served
+      },
+      submitScore: function (a) {
+        if (typeof a.score !== 'number' || !isFinite(a.score) || !optionalString(a.level) || !optionalString(a.seed)) {
+          throw fail('bad_request');
+        }
+        return post(o.endpoints.score, {
+          slug: o.game.slug,
+          score: a.score,
+          level: a.level,
+          seed: a.seed,
+          meta: a.meta === undefined ? undefined : JSON.stringify(a.meta)
+        });
+      },
+      leaderboard: function (a) {
+        var params = {};
+        if (a.period !== undefined) {
+          if (a.period !== 'all' && a.period !== 'week') throw fail('bad_request');
+          params.period = a.period;
+        }
+        if (a.limit !== undefined) {
+          if (!Number.isInteger(a.limit) || a.limit < 1) throw fail('bad_request');
+          params.limit = a.limit;
+        }
+        return get(withQuery(o.endpoints.scores, params)).then(function (body) {
+          if (!Array.isArray(body.rows)) throw fail('unavailable');
+          return body.rows;
+        });
+      },
+      save: function (a) {
+        var data = JSON.stringify(a.data);
+        if (data === undefined) throw fail('bad_request');
+        return post(o.endpoints.save, { slug: o.game.slug, data: data });
+      },
+      load: function () {
+        return get(o.endpoints.load).then(function (body) {
+          if (body.data === null || body.data === undefined) return null;
+          if (typeof body.data !== 'string') throw fail('unavailable');
+          try { return JSON.parse(body.data); } catch (e) { throw fail('unavailable'); }
+        });
+      },
+      share: function (a) {
+        if (!optionalString(a.text)) throw fail('bad_request');
+        var params = {};
+        if (typeof a.level === 'string' && a.level !== '' && LEVEL_RE.test(a.level)) params.level = a.level;
+        if (typeof a.seed === 'string' && a.seed !== '' && SEED_RE.test(a.seed)) params.seed = a.seed;
+        params.from = o.player.id;
+        var url = withQuery(o.share, params);
+        var text = a.text ? a.text + ' ' + url : url;
+        if (!o.clipboard || typeof o.clipboard.writeText !== 'function') throw fail('unavailable', 'Clipboard unavailable');
+        return Promise.resolve()
+          .then(function () { return o.clipboard.writeText(text); })
+          .then(function () { return { url: url }; }, function () { throw fail('unavailable', 'Clipboard write failed'); });
+      },
+      exit: function () {
+        return null;
+      }
+    };
+
+    function send(target, reply, transfer) {
+      try {
+        target.postMessage(reply, '*', transfer || []);
+      } catch (e) {
+        // The frame went away (exit, navigation): nothing to answer.
+      }
+    }
+
+    return {
+      handleMessage: function (event) {
+        var target = o.iframe.contentWindow;
+        if (!event || !target || event.source !== target) return Promise.resolve();
+        var msg = event.data;
+        if (!answerable(msg, o.nonce)) return Promise.resolve();
+        var bad = validateRequest(msg, o.nonce);
+        var run = bad
+          ? Promise.reject(fail(bad.code))
+          : Promise.resolve().then(function () { return ops[msg.op](msg.args === undefined ? {} : msg.args); });
+        return run.then(function (result) {
+          // The frame's origin is opaque, so '*' is required; the target window is fixed.
+          send(target, { lp: 1, id: msg.id, ok: true, result: result }, result instanceof ArrayBuffer ? [result] : []);
+          if (msg.op === 'exit' && typeof o.onExit === 'function') o.onExit();
+        }, function (e) {
+          send(target, { lp: 1, id: msg.id, ok: false, error: asError(e) });
+        });
+      }
+    };
+  }
+
+  function parse(json, fallback) {
+    try { return JSON.parse(json); } catch (e) { return fallback; }
+  }
+
+  function el(doc, tag, className, text) {
+    var n = doc.createElement(tag);
+    n.className = className;
+    if (text) n.textContent = text;
+    return n;
+  }
+
+  /** Opens the Play overlay for a .lp-play button; returns nothing when a game is already open. */
+  function openGame(button, doc, win) {
+    var root = button.closest('.lp-launcher') || doc.body;
+    if (root.querySelector('.lp-overlay')) return;
+    var d = button.dataset;
+    var game = parse(d.lpGame, null) || { slug: d.lpSlug, title: d.lpSlug, version: '' };
+    var bytes = win.crypto.getRandomValues(new Uint8Array(16));
+    var nonce = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+
+    var overlay = el(doc, 'div', 'lp-overlay');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', game.title);
+    var bar = el(doc, 'div', 'lp-overlay-bar');
+    var fullscreen = el(doc, 'button', 'lp-button lp-overlay-fullscreen', 'Fullscreen');
+    var exit = el(doc, 'button', 'lp-button lp-overlay-exit', 'Exit');
+    fullscreen.setAttribute('type', 'button');
+    exit.setAttribute('type', 'button');
+    bar.appendChild(el(doc, 'span', 'lp-overlay-title', game.title));
+    bar.appendChild(fullscreen);
+    bar.appendChild(exit);
+
+    var iframe = el(doc, 'iframe', 'lp-overlay-frame');
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.setAttribute('allow', 'fullscreen; gamepad');
+    iframe.setAttribute('title', game.title);
+    iframe.setAttribute('src', d.lpSrc + '#lp=' + nonce);
+    overlay.appendChild(bar);
+    overlay.appendChild(iframe);
+
+    var host = createHost({
+      iframe: iframe,
+      nonce: nonce,
+      endpoints: parse(d.lpEndpoints, {}),
+      csrf: d.lpCsrf,
+      base: d.lpBase,
+      game: game,
+      player: parse(d.lpPlayer, null),
+      challenge: d.lpLevel !== undefined && d.lpSeed !== undefined ? { level: d.lpLevel, seed: d.lpSeed } : null,
+      share: d.lpShare,
+      fetch: win.fetch.bind(win),
+      clipboard: win.navigator && win.navigator.clipboard,
+      onExit: close
+    });
+    function onMessage(event) { return host.handleMessage(event); }
+
+    function close() {
+      win.removeEventListener('message', onMessage);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      button.focus();
+    }
+
+    // Esc is deliberately not bound: games use it. Only Exit (or the game's exit()) closes the overlay.
+    exit.addEventListener('click', close);
+    fullscreen.addEventListener('click', function () {
+      if (typeof overlay.requestFullscreen === 'function') overlay.requestFullscreen().catch(function () {});
+    });
+    win.addEventListener('message', onMessage);
+    root.appendChild(overlay);
+    iframe.focus();
+  }
+
+  /** The card Left/Right moves to within its own row, or null (row edge, other key, card outside a row). */
+  function rowNeighbour(card, key) {
+    var step = key === 'ArrowRight' ? 1 : key === 'ArrowLeft' ? -1 : 0;
+    var strip = step && card.parentNode && card.parentNode.matches && card.parentNode.matches('.lp-row-strip') ? card.parentNode : null;
+    if (!strip) return null;
+    var cards = Array.prototype.filter.call(strip.children, function (c) { return c.matches('.lp-card'); });
+    return cards[cards.indexOf(card) + step] || null;
+  }
+
+  function init(doc, win) {
+    doc.addEventListener('click', function (e) {
+      var button = e.target && e.target.closest ? e.target.closest('.lp-launcher .lp-play') : null;
+      if (!button) return;
+      e.preventDefault();
+      openGame(button, doc, win);
+    });
+    doc.addEventListener('keydown', function (e) {
+      var card = e.target && e.target.closest ? e.target.closest('.lp-launcher .lp-card') : null;
+      var next = card ? rowNeighbour(card, e.key) : null;
+      if (!next) return;
+      e.preventDefault();
+      next.focus();
+    });
+  }
+
+  var api = {
+    normalizeAssetPath: normalizeAssetPath,
+    validateRequest: validateRequest,
+    createHost: createHost,
+    openGame: openGame,
+    rowNeighbour: rowNeighbour,
+    init: init
+  };
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  } else {
+    window.LanPartyHost = api;
+    init(document, window);
+  }
+}());
