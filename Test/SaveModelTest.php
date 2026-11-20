@@ -13,7 +13,7 @@ class SaveModelTest extends Base
     protected function setUp(): void
     {
         parent::setUp();
-        require_once __DIR__.'/../Schema/Sqlite.php';
+        require_once __DIR__.'/../Schema/'.ucfirst(DB_DRIVER).'.php'; // the schema for the suite's database
         \Kanboard\Plugin\LanParty\Schema\version_1($this->container['db']->getConnection());
         (new UserModel($this->container))->create(['username' => 'amy', 'role' => Role::APP_USER]); // 2
     }
@@ -122,14 +122,16 @@ class SaveModelTest extends Base
         $this->assertSame('{}', $saves->load(2, 'pop'));
     }
 
-    // Kills: a missing ON DELETE CASCADE (the SQLite test DB runs with PRAGMA foreign_keys = ON).
+    // Kills: a missing ON DELETE CASCADE (SQLite enforces it only with PRAGMA foreign_keys = ON, so check that too).
     public function testDeletingTheUserRemovesTheirSaves(): void
     {
         $saves = new SaveModel($this->container);
         $saves->save(1, 'pop', '{"who":"admin"}');
         $saves->save(2, 'pop', '{"who":"amy"}');
         $saves->save(2, 'saltroad', '{"who":"amy"}');
-        $this->assertSame(1, (int) $this->container['db']->getConnection()->query('PRAGMA foreign_keys')->fetchColumn());
+        if (DB_DRIVER === 'sqlite') {
+            $this->assertSame(1, (int) $this->container['db']->getConnection()->query('PRAGMA foreign_keys')->fetchColumn());
+        }
         $this->assertTrue((new UserModel($this->container))->remove(2));
         $this->assertSame(0, $this->container['db']->table('lanparty_saves')->eq('user_id', 2)->count());
         $this->assertSame('{"who":"admin"}', $saves->load(1, 'pop'));

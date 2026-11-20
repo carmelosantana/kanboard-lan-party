@@ -12,7 +12,7 @@ trait EndpointHarness
 
     private function setUpEndpoints(): void
     {
-        require_once __DIR__.'/../Schema/Sqlite.php';
+        require_once __DIR__.'/../Schema/'.ucfirst(DB_DRIVER).'.php'; // the schema for the suite's database
         \Kanboard\Plugin\LanParty\Schema\version_1($this->container['db']->getConnection());
         $this->container['logger'] = $this->createMock(\Psr\Log\LoggerInterface::class);
         (new UserModel($this->container))->create(['username' => 'amy', 'name' => 'Amy', 'role' => Role::APP_USER]); // 2

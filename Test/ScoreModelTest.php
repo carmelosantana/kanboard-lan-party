@@ -27,7 +27,7 @@ class ScoreModelTest extends Base
     protected function setUp(): void
     {
         parent::setUp();
-        require_once __DIR__.'/../Schema/Sqlite.php';
+        require_once __DIR__.'/../Schema/'.ucfirst(DB_DRIVER).'.php'; // the schema for the suite's database
         \Kanboard\Plugin\LanParty\Schema\version_1($this->container['db']->getConnection());
         // Hermetic: if Agents is autoloadable but unmigrated, the filter logs and degrades to no agents.
         $this->container['logger'] = $this->createMock(\Psr\Log\LoggerInterface::class);
