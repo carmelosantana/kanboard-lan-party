@@ -11,4 +11,6 @@
   agent users stay off the boards when the Agents plugin is installed.
 - Per-player game saves (up to 64 KB of JSON).
 - Challenge links: a shared level and seed reopen the game on the same run.
+- Game files opened outside the launcher stay sandboxed: the SDK stops the page, and `Games/.htaccess` (Apache)
+  or the README's nginx snippet serve them with `Content-Security-Policy: sandbox allow-scripts`.
 - Sample game `Pop`, and the game contract for authors in `docs/game-contract.md`.
