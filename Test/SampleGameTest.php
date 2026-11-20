@@ -112,7 +112,9 @@ class SampleGameTest extends Base
     public function testIndexLoadsTheSdkAndHasNoInlineScript(): void
     {
         $html = (string) file_get_contents(self::POP.'/index.html');
-        $this->assertStringContainsString('<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>', $html);
+        // Kills: any script ahead of the SDK (it would run before the SDK's unsandboxed-window guard).
+        preg_match('#<script\b[^>]*>#i', $html, $first);
+        $this->assertSame('<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v='.(new Plugin($this->container))->getPluginVersion().'">', $first[0] ?? null);
 
         preg_match_all('#<script\b([^>]*)>(.*?)</script>#is', $html, $scripts, PREG_SET_ORDER);
         $this->assertNotEmpty($scripts);
@@ -121,6 +123,15 @@ class SampleGameTest extends Base
             $this->assertSame('', trim($body), $tag);
         }
         $this->assertDoesNotMatchRegularExpression('/<[^>]*\son[a-z]+\s*=/i', $html, 'no on*= attributes');
+    }
+
+    public function testPopVersionsItsOwnScriptsAndStyles(): void
+    {
+        // Kills: unversioned URLs, which stock nginx caches for 7 days across an upgrade.
+        $html = (string) file_get_contents(self::POP.'/index.html');
+        $v = '?v='.$this->manifest()['version'];
+        $this->assertStringContainsString('<link rel="stylesheet" href="pop.css'.$v.'">', $html);
+        $this->assertStringContainsString('<script src="pop.js'.$v.'"></script>', $html);
     }
 
     public function testPopMakesNoExternalRequests(): void
