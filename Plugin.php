@@ -17,6 +17,12 @@ class Plugin extends Base
             glob(__DIR__.'/Games/*', GLOB_ONLYDIR) ?: []
         );
         $this->container['lanpartyGames'] = array_merge($this->container['lanpartyGames'] ?? [], $ownGames);
+
+        // JSON endpoints for the game bridge (frozen paths).
+        $this->route->addRoute('lanparty/score', 'ScoreController', 'submit', 'LanParty');
+        $this->route->addRoute('lanparty/scores/:slug', 'ScoreController', 'board', 'LanParty');
+        $this->route->addRoute('lanparty/save', 'SaveController', 'save', 'LanParty');
+        $this->route->addRoute('lanparty/load/:slug', 'SaveController', 'load', 'LanParty');
     }
 
     public function getPluginName(): string        { return 'LanParty'; }
