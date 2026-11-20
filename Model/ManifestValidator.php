@@ -54,10 +54,13 @@ class ManifestValidator
         return $errors;
     }
 
-    /** Relative, no `..` segment, no leading slash or backslash, no scheme or drive letter. */
+    /**
+     * Relative, no `..` segment, no leading slash or backslash (so no `//host`), no `:` (scheme, data: URI,
+     * drive letter), and no `%`, `?` or `#` (browsers decode %2e%2e to `..`; query/fragment change the URL).
+     */
     public static function isSafeRelativePath(string $path): bool
     {
-        if ($path === '' || $path[0] === '/' || $path[0] === '\\' || str_contains($path, ':')) {
+        if ($path === '' || $path[0] === '/' || $path[0] === '\\' || strpbrk($path, ':%?#') !== false) {
             return false;
         }
         return ! in_array('..', preg_split('#[/\\\\]#', $path), true);
@@ -80,9 +83,13 @@ class ManifestValidator
     private function validateArt(array &$errors, mixed $art): void
     {
         $art = is_array($art) ? $art : [];
-        $this->requireString($errors, $art, 'cover', null, 'art.');
-        if (array_key_exists('hero', $art) && (! is_string($art['hero']) || trim($art['hero']) === '')) {
-            $errors[] = 'art.hero: must be a non-empty string';
+        // Art renders as a same-origin <img src> on the launcher: it must stay inside the game folder.
+        if ($this->requireString($errors, $art, 'cover', null, 'art.') && ! self::isSafeRelativePath($art['cover'])) {
+            $errors[] = 'art.cover: must be a relative path inside the game folder';
+        }
+        if (array_key_exists('hero', $art)
+            && (! is_string($art['hero']) || trim($art['hero']) === '' || ! self::isSafeRelativePath($art['hero']))) {
+            $errors[] = 'art.hero: must be a relative path inside the game folder';
         }
     }
 

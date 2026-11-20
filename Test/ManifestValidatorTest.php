@@ -111,6 +111,28 @@ class ManifestValidatorTest extends Base
             'entry absolute' => ['entry', $set('entry', '/index.html')],
             // Kills: dropping the scheme check.
             'entry scheme' => ['entry', $set('entry', 'https://evil.example/x.html')],
+            // Kills: dropping the `%` check (browsers decode %2e%2e to ..).
+            'entry percent' => ['entry', $set('entry', '%2e%2e/index.html')],
+            // Kills: dropping the `?` check.
+            'entry query' => ['entry', $set('entry', 'index.html?x=1')],
+            // Kills: dropping the `#` check.
+            'entry fragment' => ['entry', $set('entry', 'index.html#lp=1')],
+            // Kills: not applying the safe-path rule to art.cover (scheme).
+            'art.cover scheme' => ['art.cover', $set('art.cover', 'https://evil.example/c.svg')],
+            // Kills: not applying the safe-path rule to art.cover (protocol-relative).
+            'art.cover protocol-relative' => ['art.cover', $set('art.cover', '//evil.example/c.svg')],
+            // Kills: not applying the safe-path rule to art.cover (data: URI).
+            'art.cover data uri' => ['art.cover', $set('art.cover', 'data:image/svg+xml,<svg/>')],
+            // Kills: not applying the safe-path rule to art.cover (`..`).
+            'art.cover dotdot' => ['art.cover', $set('art.cover', '../other/cover.svg')],
+            // Kills: not applying the safe-path rule to art.hero (scheme).
+            'art.hero scheme' => ['art.hero', $set('art.hero', 'https://evil.example/h.svg')],
+            // Kills: not applying the safe-path rule to art.hero (protocol-relative).
+            'art.hero protocol-relative' => ['art.hero', $set('art.hero', '//evil.example/h.svg')],
+            // Kills: not applying the safe-path rule to art.hero (data: URI).
+            'art.hero data uri' => ['art.hero', $set('art.hero', 'data:image/png;base64,AAAA')],
+            // Kills: not applying the safe-path rule to art.hero (`..`).
+            'art.hero dotdot' => ['art.hero', $set('art.hero', 'a/../../h.svg')],
             // Kills: dropping the art.cover required check.
             'art.cover missing' => ['art.cover', $set('art', ['hero' => 'hero.svg'])],
             // Kills: dropping the art.hero type check.
@@ -141,6 +163,8 @@ class ManifestValidatorTest extends Base
             'scoring.max zero' => ['scoring.max', $set('scoring.max', 0)],
             // Kills: dropping the files list check.
             'files not list' => ['files', $set('files', 'doom.wad')],
+            // Kills: dropping the per-slot object check (a string slot).
+            'files slot not object' => ['files.0', $set('files', ['x'])],
             // Kills: dropping the slot id regex check.
             'files id bad' => ['files.0.id', $withSlot('id', 'Doom WAD')],
             // Kills: dropping the slot label check.
