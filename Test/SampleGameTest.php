@@ -88,7 +88,7 @@ class SampleGameTest extends Base
         );
         $this->container['lanpartyGames'] = [];
         (new Plugin($this->container))->initialize();
-        $shipped = array_map('basename', glob(self::GAMES.'/*', GLOB_ONLYDIR));
+        $shipped = array_map('basename', glob(self::GAMES.'/*', GLOB_ONLYDIR) ?: []);
         $this->assertContains('pop', $shipped);
         $this->assertSame($shipped, array_keys($this->container['gameRegistry']->all()));
     }

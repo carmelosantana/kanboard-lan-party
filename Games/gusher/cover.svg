@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a4651"/>
+      <stop offset="1" stop-color="#1f272e"/>
+    </linearGradient>
+    <pattern id="deck" width="50" height="50" patternUnits="userSpaceOnUse">
+      <rect width="50" height="50" fill="#2d3842"/>
+      <rect x="0.5" y="0.5" width="49" height="49" fill="none" stroke="#3a4651"/>
+      <circle cx="6" cy="6" r="2" fill="#46535f"/>
+      <circle cx="44" cy="6" r="2" fill="#46535f"/>
+      <circle cx="6" cy="44" r="2" fill="#46535f"/>
+      <circle cx="44" cy="44" r="2" fill="#46535f"/>
+    </pattern>
+  </defs>
+  <rect width="400" height="600" fill="url(#dusk)"/>
+  <rect y="300" width="400" height="300" fill="url(#deck)"/>
+  <!-- the plume -->
+  <path d="M200 330 C185 250 150 190 110 150 C150 170 185 200 200 120 C215 200 250 170 290 150 C250 190 215 250 200 330 Z" fill="#1b120c"/>
+  <circle cx="200" cy="112" r="22" fill="#1b120c"/>
+  <circle cx="168" cy="134" r="14" fill="#1b120c"/>
+  <circle cx="234" cy="132" r="12" fill="#1b120c"/>
+  <circle cx="190" cy="105" r="5" fill="#b5772a"/>
+  <circle cx="222" cy="140" r="4" fill="#b5772a"/>
+  <!-- wellhead -->
+  <rect x="170" y="320" width="60" height="60" fill="#8a5a3c" stroke="#5a3a26" stroke-width="4"/>
+  <!-- pipe runs: steel band, edge, flanges, crude core -->
+  <g stroke-linejoin="round" fill="none">
+    <path d="M230 350 H325 V475 H75 V550" stroke="#5f6c77" stroke-width="22"/>
+    <path d="M230 350 H325 V475 H75 V550" stroke="#a9b4bd" stroke-width="17"/>
+    <path d="M230 350 H325 V475 H160" stroke="#1b120c" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <g fill="#cfd6db">
+    <rect x="270" y="336" width="6" height="28"/>
+    <rect x="311" y="420" width="28" height="6"/>
+    <rect x="220" y="461" width="6" height="28"/>
+    <rect x="120" y="461" width="6" height="28"/>
+    <rect x="61" y="520" width="28" height="6"/>
+  </g>
+  <!-- a tank-junction drum on the line -->
+  <circle cx="325" cy="400" r="24" fill="#a9b4bd" stroke="#5f6c77" stroke-width="4"/>
+  <circle cx="325" cy="400" r="17" fill="none" stroke="#5f6c77" stroke-width="2"/>
+  <path d="M308 408 H342 A17 17 0 0 1 308 408 Z" fill="#1b120c"/>
+  <!-- valve wheel -->
+  <circle cx="75" cy="510" r="11" fill="none" stroke="#e0a43a" stroke-width="3"/>
+  <path d="M75 499 V521 M64 510 H86" stroke="#e0a43a" stroke-width="2"/>
+  <text x="200" y="76" text-anchor="middle" font-family="system-ui, sans-serif" font-size="64" font-weight="800" letter-spacing="4" fill="#e0a43a">GUSHER</text>
+</svg>

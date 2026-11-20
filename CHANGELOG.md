@@ -16,3 +16,5 @@
 - Sample game `Pop`, and the game contract for authors in `docs/game-contract.md`.
 - Original game `Saltroad`: lead a salt caravan across a short or long route; seeded event deck for
   challenges, trading posts, saved journeys.
+- Game `Gusher`: an oil pipe-flow puzzle with ten hand-made levels and seeded endless boards; the seeded piece
+  queue gives challengers the same pieces.
