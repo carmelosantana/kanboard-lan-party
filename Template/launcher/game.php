@@ -4,7 +4,7 @@
         <div class="lp-hero-body">
             <?php if ($challenge !== null): ?>
                 <p class="lp-challenge">
-                    <?= t('Beat %s’s %s', $challenge['name'], $challenge['best']) ?>
+                    <?= t('Beat %s’s best: %s', $challenge['name'], $challenge['best']) ?>
                     <span class="lp-challenge-meta"><?= t('Level') ?> <?= $this->text->e($challenge['level']) ?> · <?= t('Seed') ?> <?= $this->text->e($challenge['seed']) ?></span>
                 </p>
             <?php endif ?>

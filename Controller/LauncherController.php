@@ -92,8 +92,9 @@ class LauncherController extends BaseController
     }
 
     /**
-     * "Beat <name>'s <best>" data when level and seed match the score regexes and the `from` user has a best
-     * score for this game. Requiring a best means ?from=N only ever shows a name the leaderboard already shows.
+     * "Beat <name>'s best: <score>" data (the sharer's best, not the shared run's score) when level and seed
+     * match the score regexes and the `from` user has a best score for this game. Requiring a best means
+     * ?from=N only ever shows a name the leaderboard already shows.
      */
     private function challenge(ScoreModel $scores, array $game): ?array
     {

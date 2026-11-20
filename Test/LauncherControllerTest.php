@@ -192,7 +192,7 @@ class LauncherControllerTest extends Base
         $game = $this->container['gameRegistry']->get('arcade');
         (new ScoreModel($this->container))->submit($game, 2, 640, null, null, null);
         $html = $this->render('game', ['slug' => 'arcade', 'level' => 'l-1.x_', 'seed' => 's1', 'from' => '2']);
-        $this->assertStringContainsString('Beat Amy’s 640', $html);
+        $this->assertStringContainsString('Beat Amy’s best: 640', $html);
         $this->assertStringContainsString('l-1.x_', $html);
         $this->assertCspSafe($html);
 
@@ -210,7 +210,7 @@ class LauncherControllerTest extends Base
             $this->assertStringNotContainsString('Beat ', $out, $why);
             $this->assertNull($this->playAttr($out, 'level'), $why);
         }
-        $this->assertStringContainsString('Beat Amy’s 640', $this->render('game', ['slug' => 'arcade', 'level' => str_repeat('a', 32), 'seed' => str_repeat('b', 64), 'from' => '2']));
+        $this->assertStringContainsString('Beat Amy’s best: 640', $this->render('game', ['slug' => 'arcade', 'level' => str_repeat('a', 32), 'seed' => str_repeat('b', 64), 'from' => '2']));
 
         // A real user with no best for this game (admin, id 1) gives no banner: names are only shown off the board.
         $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'level' => '1', 'seed' => 's', 'from' => '1']));
