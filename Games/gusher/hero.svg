@@ -41,7 +41,7 @@
   <circle cx="1650" cy="450" r="32" fill="none" stroke="#5f6c77" stroke-width="3"/>
   <path d="M1620 462 H1680 A32 32 0 0 1 1620 462 Z" fill="#1b120c"/>
   <circle cx="1850" cy="560" r="20" fill="none" stroke="#e0a43a" stroke-width="5"/>
-  <path d="M1836 546 L1864 574 M1864 546 L1836 574" stroke="#e0a43a" stroke-width="4"/>
+  <path d="M1850 540 V580 M1830 560 H1870" stroke="#e0a43a" stroke-width="4"/>
   <rect x="1990" y="200" width="90" height="100" fill="#3d5547"/>
   <rect x="1998" y="208" width="74" height="84" fill="#5f7d6b"/>
   <text x="160" y="500" font-family="system-ui, sans-serif" font-size="230" font-weight="800" letter-spacing="10" fill="#e0a43a">GUSHER</text>

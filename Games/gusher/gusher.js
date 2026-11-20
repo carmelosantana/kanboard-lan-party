@@ -127,12 +127,12 @@
         say('Crude is flowing.');
       }
     }
-    draw(now);
     if (s.over && !run.over) {
       run.over = true;
-      run.endedAt = now;
+      run.endedAt = now; // before draw(), so the spill puddle starts small and grows
       say(s.sealed ? 'Line sealed! Every branch ended safe.' : 'Spill at ' + G.cellName(s.spill.x, s.spill.y) + '! Round over.');
     }
+    draw(now);
     if (run.over && now - run.endedAt > 1200) {
       finish();
       return;
@@ -176,7 +176,7 @@
   function finish() {
     const s = run.state;
     const level = s.cfg.level;
-    const merged = G.mergeBest(best, level, s.score.barrels);
+    const merged = G.mergeBest(best, level, s.score.barrels, G.levelKeys(levels));
     if (merged.improved) {
       best = merged.best;
       if (bestLoaded) sdk.save({ v: 1, best: best }).catch(function () {});
@@ -284,7 +284,7 @@
     ctx.restore();
   }
 
-  /** Steel for a piece (no crude). alpha < 1 draws the ghost under the cursor. */
+  /** Steel for a piece (no crude). The caller sets globalAlpha for the ghost under the cursor. */
   function drawSteel(piece, cx, cy, s) {
     const band = s * 0.34;
     const ops = G.openings(piece);
@@ -426,7 +426,7 @@
     ctx.strokeStyle = '#5a3a26';
     ctx.lineWidth = 3;
     ctx.strokeRect(cx - s * 0.3, cy - s * 0.3, s * 0.6, s * 0.6);
-    // the wellhead cap: a stubby cross of bolts
+    // the wellhead cap: the countdown digits, then an open bore once crude flows
     ctx.fillStyle = C.amber;
     const left = G.countdownLeft(run.state);
     if (left > 0) {
@@ -473,7 +473,8 @@
     const cy = r.y + r.s / 2;
     drawSteel(cell.piece, cx, cy, r.s);
     const heads = run.state.heads.filter(function (h) { return h.x === x && h.y === y; });
-    [0, 1].forEach(function (ch) {
+    // east-west (1) first, so north-south crude stays on top of the bridge
+    [1, 0].forEach(function (ch) {
       if (cell.filled[ch]) drawCrude(cell, ch, cx, cy, r.s, null, t);
     });
     heads.forEach(function (h) { drawCrude(cell, h.ch, cx, cy, r.s, h, t); });
@@ -702,14 +703,11 @@
     })
     .then(function (loaded) {
       levels = JSON.parse(new TextDecoder().decode(loaded[0]));
-      best = G.readBest(loaded[1]);
-      let first = '1';
-      if (challenge) {
-        first = challenge.level === G.LEVEL_ENDLESS || Object.prototype.hasOwnProperty.call(levels, challenge.level) ? challenge.level : '1';
-        challenge = { level: first, seed: challenge.seed };
-        doc.getElementById('intro-note').textContent = 'Challenge: ' + levelLabel(first) + ', seed ' + challenge.seed + '. Same board, same pieces.';
-      }
-      fillLevelPick(first);
+      best = G.readBest(loaded[1], G.levelKeys(levels));
+      const start = G.challengeStart(levels, challenge);
+      challenge = start.seed ? { level: start.level, seed: start.seed } : null;
+      doc.getElementById('intro-note').textContent = start.note;
+      fillLevelPick(start.level);
       say('');
       show(intro);
     })

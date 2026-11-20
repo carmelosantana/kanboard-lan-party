@@ -43,6 +43,6 @@
   <path d="M308 408 H342 A17 17 0 0 1 308 408 Z" fill="#1b120c"/>
   <!-- valve wheel -->
   <circle cx="75" cy="510" r="11" fill="none" stroke="#e0a43a" stroke-width="3"/>
-  <path d="M67 502 L83 518 M83 502 L67 518" stroke="#e0a43a" stroke-width="2"/>
+  <path d="M75 499 V521 M64 510 H86" stroke="#e0a43a" stroke-width="2"/>
   <text x="200" y="76" text-anchor="middle" font-family="system-ui, sans-serif" font-size="64" font-weight="800" letter-spacing="4" fill="#e0a43a">GUSHER</text>
 </svg>
