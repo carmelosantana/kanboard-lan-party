@@ -116,6 +116,22 @@ class SaltroadGameTest extends Base
         $this->assertStringNotContainsString(' style=', $html, 'styles live in saltroad.css');
     }
 
+    public function testCampHintsAndConfirmLiveInThePage(): void
+    {
+        $html = (string) file_get_contents(self::DIR.'/index.html');
+        // Kills: pace and ration numbers typed into the page, where a balance change would leave them stale.
+        $this->assertDoesNotMatchRegularExpression('/\\d+\\s*(mi|food|water)\\b/', $html);
+        foreach (['steady', 'hard', 'rest', 'full', 'half', 'lean'] as $key) {
+            $this->assertStringContainsString('id="hint-'.$key.'"', $html);
+        }
+        // Kills: a new start replacing a saved journey with no in-page confirmation (window.confirm is sandboxed off).
+        $this->assertMatchesRegularExpression('/<section id="confirm"[^>]*role="alertdialog"/', $html);
+        $this->assertStringContainsString('id="confirm-start"', $html);
+        $this->assertStringContainsString('id="confirm-keep"', $html);
+        $js = (string) file_get_contents(self::DIR.'/saltroad.js');
+        $this->assertStringNotContainsString('confirm(', str_replace(['showConfirm(', 'abandonConfirm('], '', $js));
+    }
+
     public function testVersionsItsOwnScriptsAndStyles(): void
     {
         $html = (string) file_get_contents(self::DIR.'/index.html');

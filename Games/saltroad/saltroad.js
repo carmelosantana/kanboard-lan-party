@@ -16,7 +16,7 @@
     const canvas = $('map');
     const ctx = canvas.getContext('2d');
     const status = $('status');
-    const cards = [$('intro'), $('results')];
+    const cards = [$('intro'), $('confirm'), $('results')];
     const panels = { camp: $('camp'), event: $('event'), post: $('post') };
     const reduceMotion = win.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -25,8 +25,8 @@
     let saveLoaded = false; // false when load() failed: never overwrite a save we could not read
     let challenge = null;
     let run = null; // {route, deck, s, over, submit, anim}
-    let saving = false;
-    let saveAgain = false;
+    let pendingStart = null; // the start waiting on the abandon-journey confirmation
+    const saves = C.saveQueue(function (data) { return sdk.save(data); });
 
     const dpr = win.devicePixelRatio || 1;
     canvas.width = VIEW.width * dpr;
@@ -63,15 +63,9 @@
       return { v: 1, best: saved.best, journey: saved.journey };
     }
 
-    /** One save in flight at a time; a change made meanwhile is saved when it lands. */
+    /** Every save goes through one queue: one in flight, later changes coalesced into the next. */
     function persist() {
-      if (!saveLoaded) return;
-      if (saving) { saveAgain = true; return; }
-      saving = true;
-      sdk.save(payload()).catch(function () {}).then(function () {
-        saving = false;
-        if (saveAgain) { saveAgain = false; persist(); }
-      });
+      if (saveLoaded) saves.push(payload);
     }
 
     // ── Map ──────────────────────────────────────────────────────────────────
@@ -439,11 +433,29 @@
     }
 
     function leave() {
-      const done = saveLoaded ? sdk.save(payload()).catch(function () {}) : Promise.resolve();
+      const done = saveLoaded ? saves.flush(payload) : Promise.resolve();
       done.then(function () { return sdk.exit(); }).catch(function () {});
     }
 
+    /** A new start over a saved journey asks first, in the page (the sandbox has no window.confirm). */
+    function startOrAsk(level, seed) {
+      const note = C.abandonNote(saved.journey, routes);
+      if (!note) { begin(level, seed, null); return; }
+      pendingStart = { level: level, seed: seed };
+      $('confirm-text').textContent = note;
+      showCard($('confirm'));
+    }
+
+    function keepJourney() {
+      pendingStart = null;
+      showCard($('intro'));
+      $('continue').focus();
+    }
+
     // ── Input ────────────────────────────────────────────────────────────────
+
+    Object.keys(C.PACES).forEach(function (k) { $('hint-' + k).textContent = C.paceHint(k); });
+    Object.keys(C.RATIONS).forEach(function (k) { $('hint-' + k).textContent = C.rationHint(k); });
 
     $('travel').addEventListener('click', function () {
       act(C.travelDay(run.s, run.route, run.deck, plan()));
@@ -463,11 +475,20 @@
 
     $('play').addEventListener('click', function () {
       if (challenge) {
-        begin(challenge.level, challenge.seed, null);
+        startOrAsk(challenge.level, challenge.seed);
         return;
       }
       const picked = doc.querySelector('input[name="route"]:checked');
-      begin(picked ? picked.value : '1', C.randomSeed(Math.random), null);
+      startOrAsk(picked ? picked.value : '1', C.randomSeed(Math.random));
+    });
+    $('confirm-keep').addEventListener('click', keepJourney);
+    $('confirm-start').addEventListener('click', function () {
+      const start = pendingStart;
+      pendingStart = null;
+      if (start) begin(start.level, start.seed, null);
+    });
+    $('confirm').addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); keepJourney(); }
     });
     $('continue').addEventListener('click', function () {
       const j = saved.journey;
@@ -493,8 +514,7 @@
       })
       .then(function (loaded) {
         routes = JSON.parse(new TextDecoder().decode(loaded[0]));
-        saved = C.readSave(loaded[1]);
-        if (saved.journey && !Object.prototype.hasOwnProperty.call(routes, saved.journey.level)) saved.journey = null;
+        saved = C.readSave(loaded[1], routes);
         if (challenge) {
           const route = C.routeConfig(routes, challenge.level);
           challenge = { level: route.level, seed: challenge.seed };
