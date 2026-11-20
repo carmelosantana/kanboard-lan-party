@@ -24,6 +24,7 @@
   var MAX_ARGS = 70000;
   var MAX_PATH = 512;
   var MAX_IN_FLIGHT = 8;
+  var LOCAL_OPS = ['ready', 'exit', 'file']; // never touch the network, so the in-flight cap leaves them alone
   var MAX_SHARE_TEXT = 280;
   var LEVEL_RE = /^[A-Za-z0-9_.-]{0,32}$/;
   var SEED_RE = /^[A-Za-z0-9_.-]{0,64}$/;
@@ -89,11 +90,12 @@
     return qs === '' ? url : url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
   }
 
-  // Game text for the clipboard: line breaks and tabs become spaces, other control characters go, max 280 chars.
+  // Game text for the clipboard: line breaks and tabs become spaces, other control characters and bidi
+  // embeddings, overrides and isolates go, max 280 chars.
   function shareText(text) {
     return (text || '')
       .replace(/[\r\n\t\u2028\u2029]+/g, ' ')
-      .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+      .replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '')
       .trim()
       .slice(0, MAX_SHARE_TEXT)
       .trim();
@@ -244,15 +246,17 @@
         var msg = event.data;
         if (!answerable(msg, o.nonce)) return Promise.resolve();
         var bad = validateRequest(msg, o.nonce);
-        if (!bad && inFlight >= MAX_IN_FLIGHT) bad = { code: 'rate_limited' };
+        var counted = LOCAL_OPS.indexOf(msg.op) === -1;
+        if (!bad && counted && inFlight >= MAX_IN_FLIGHT) bad = { code: 'rate_limited' };
         var run;
         if (bad) {
           run = Promise.reject(fail(bad.code));
         } else {
-          inFlight++;
+          var step = counted ? 1 : 0;
+          inFlight += step;
           run = Promise.resolve()
             .then(function () { return ops[msg.op](msg.args === undefined ? {} : msg.args); })
-            .then(function (r) { inFlight--; return r; }, function (e) { inFlight--; throw e; });
+            .then(function (r) { inFlight -= step; return r; }, function (e) { inFlight -= step; throw e; });
         }
         return run.then(function (result) {
           // The frame's origin is opaque, so '*' is required; the target window is fixed.

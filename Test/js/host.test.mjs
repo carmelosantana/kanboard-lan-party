@@ -238,6 +238,27 @@ test('more than 8 in-flight ops reject rate_limited before any fetch', async () 
   assert.equal(replies.filter((r) => r.msg.ok).length, 9);
 });
 
+// Kills: counting ready, exit and file (which never touch the network) against the in-flight cap, so a game
+// with 8 slow asset loads could not even exit.
+test('ready, exit and file are answered while 8 network ops are in flight', async () => {
+  const gates = [];
+  const fetch = () => new Promise((resolve) => gates.push(() => resolve(res(200, 'x', { json: false }))));
+  const { host, frameWin, replies, exited } = setup({ fetch });
+  const msg = (id, op, args = {}) => ({ source: frameWin, data: { lp: 1, id, nonce: NONCE, op, args } });
+  const running = [];
+  for (let id = 1; id <= 8; id++) running.push(host.handleMessage(msg(id, 'asset', { path: 'a.png' })));
+  await new Promise((r) => setImmediate(r));
+  await host.handleMessage(msg(20, 'ready'));
+  await host.handleMessage(msg(21, 'file', { id: 'doom1' }));
+  await host.handleMessage(msg(22, 'exit'));
+  await host.handleMessage(msg(23, 'load'));
+  assert.deepEqual(replies.map((r) => [r.msg.id, r.msg.ok, r.msg.error && r.msg.error.code]),
+    [[20, true, undefined], [21, false, 'missing'], [22, true, undefined], [23, false, 'rate_limited']]);
+  assert.equal(exited(), 1);
+  gates.forEach((g) => g());
+  await Promise.all(running);
+});
+
 // Kills: dropping file() from the whitelist, or inventing a server call for it in phase 1.
 test('file rejects missing for any id without a network call', async () => {
   const { send, calls } = setup();
@@ -356,6 +377,15 @@ test('share strips control characters and caps the text at 280 chars', async () 
   assert.equal(clipboard.written[1], 'a'.repeat(280) + ' ' + url);
   await send('share', { text: '\n\u0000' });
   assert.equal(clipboard.written[2], url);
+});
+
+// Kills: letting bidi overrides and isolates through, which can make a copied message read differently
+// from what it says (Trojan Source style) next to the challenge link.
+test('share strips bidi embedding, override and isolate controls', async () => {
+  const { send, clipboard } = setup();
+  const bidi = ['\u202a', '\u202b', '\u202c', '\u202d', '\u202e', '\u2066', '\u2067', '\u2068', '\u2069'];
+  await send('share', { text: 'Beat' + bidi.join('') + ' me' });
+  assert.equal(clipboard.written[0], 'Beat me ' + SHARE + '&from=2');
 });
 
 // Kills: resolving share when the clipboard write failed.
