@@ -135,7 +135,7 @@ It defines a global `LanParty`. Every call returns a Promise. Call `ready()` fir
 | `leaderboard({period?, limit?})` | `[{rank, user_id, name, score, level, date}]` | `period` `all` (default) or `week` (last 7 days); `limit` an integer ≥ 1, default 10, capped at 100. One row per player (their best; a tie goes to whoever got there first). `name` is the display name, or the username when a user has none. `date` is a Unix timestamp. Agent users are left out when the Agents plugin is installed. |
 | `save(obj)` | `{ saved: true }` | Stores one JSON value per player per game, at most 64 KB as JSON; a new save replaces the old one. |
 | `load()` | the saved value, or `null` | |
-| `share({level?, seed?, text})` | `{ url }` | Copies `text` and a challenge link to the player's clipboard. `text` is flattened to one line and cut to 280 characters. A link carries a challenge only when it has both `level` and `seed` (invalid ones are dropped) and the sharer has a score in this game, so share after submitting. |
+| `share({level?, seed?, text})` | `{ url }` | Copies `text` and a challenge link to the player's clipboard. `text` is flattened to one line and cut to 280 characters. A link carries a challenge only when it has both `level` and `seed` (invalid ones are dropped): the game opens on that level and seed. The "Beat <name>'s best" banner shows only when the sharer has a score on that level, so share after submitting. |
 | `exit()` | `null` | Closes the game and returns to the launcher. |
 
 Every rejection is `{ code, message }`, with `code` one of:

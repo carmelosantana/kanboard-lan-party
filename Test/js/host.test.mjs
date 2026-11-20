@@ -394,7 +394,7 @@ test('share resolves a relative game URL against the page URL', async () => {
     iframe: { contentWindow: frameWin }, nonce: NONCE, endpoints: ENDPOINTS, csrf: 'tok123',
     base: '/plugins/scored/Games/arcade/', player: PLAYER, game: GAME,
     share: '/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade',
-    pageUrl: 'http://kb.lan:8083/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade',
+    pageOrigin: 'http://kb.lan:8083',
     challenge: null, fetch: async () => res(200, {}), clipboard, onExit: () => {},
   });
   await host.handleMessage({ source: frameWin, data: { lp: 1, id: 1, nonce: NONCE, op: 'share', args: { level: 'l2', seed: 'abc' } } });
@@ -541,6 +541,24 @@ test('openGame passes the challenge from data-lp-level / data-lp-seed to ready()
   const nonce = iframe.getAttribute('src').split('#lp=')[1];
   await win.listeners.message[0]({ source: iframe.contentWindow, data: { lp: 1, id: 1, nonce, op: 'ready', args: {} } });
   assert.deepEqual(replies[0].result, { player: PLAYER, game: GAME, challenge: { level: 'l2', seed: 'abc' } });
+});
+
+// Kills: mount() not handing the page's origin to the host (a relative share link copied as-is), or resolving
+// against the full page URL, which can carry user:pass@ into the copied link.
+test('openGame resolves a relative share link on the page origin', async () => {
+  const { doc, win } = fakeDom();
+  win.location = { origin: 'http://kb.lan:8083', href: 'http://amy:secret@kb.lan:8083/kanboard/?x=1' };
+  const written = [];
+  win.navigator.clipboard.writeText = async (t) => { written.push(t); };
+  const { root, b } = playButton(doc, { lpShare: '/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade' });
+  H.openGame(b, doc, win);
+  const iframe = find(root, (n) => n.tagName === 'IFRAME');
+  const replies = [];
+  iframe.contentWindow.postMessage = (msg) => replies.push(msg);
+  const nonce = iframe.getAttribute('src').split('#lp=')[1];
+  await win.listeners.message[0]({ source: iframe.contentWindow, data: { lp: 1, id: 1, nonce, op: 'share', args: {} } });
+  assert.deepEqual(replies[0].result, { url: 'http://kb.lan:8083/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade&from=2' });
+  assert.deepEqual(written, [replies[0].result.url]);
 });
 
 // Kills: arrow keys that ignore the row, wrap around, or move on other keys.

@@ -215,7 +215,6 @@ class LauncherControllerTest extends Base
         $this->assertCspSafe($html);
 
         $none = [
-            'unknown user' => ['level' => '1', 'seed' => 's', 'from' => '99'],
             'no level/seed' => ['from' => '2'],
             'no seed' => ['level' => '1', 'from' => '2'],
             'markup level' => ['level' => '<i>x</i>', 'seed' => 's1', 'from' => '2'],
@@ -245,7 +244,14 @@ class LauncherControllerTest extends Base
         $scores->submit($game, 2, 900, '1', null, null, 1000);
         $scores->submit($game, 2, 500, '5', null, null, 1010);
         $this->assertStringContainsString('Beat Amy’s best: 500', $this->render('game', ['slug' => 'arcade', 'level' => '5', 'seed' => 's', 'from' => '2']));
-        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'level' => '7', 'seed' => 's', 'from' => '2']));
+        // No best on the challenged level (or an unknown sharer): no banner, but the run still starts on the
+        // shared level and seed, so the link is not silently downgraded to a plain game.
+        foreach (['no best on level 7' => ['level' => '7', 'seed' => 's', 'from' => '2'], 'unknown user' => ['level' => '7', 'seed' => 's', 'from' => '99']] as $why => $get) {
+            $html = $this->render('game', ['slug' => 'arcade'] + $get);
+            $this->assertStringNotContainsString('Beat ', $html, $why);
+            $this->assertSame('7', $this->playAttr($html, 'level'), $why);
+            $this->assertSame('s', $this->playAttr($html, 'seed'), $why);
+        }
     }
 
     // Kills: dropping or mis-building any host attribute (base, game, player, share), or emitting level/seed

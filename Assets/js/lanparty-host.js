@@ -220,8 +220,9 @@
         if (typeof a.level === 'string' && a.level !== '' && LEVEL_RE.test(a.level)) params.level = a.level;
         if (typeof a.seed === 'string' && a.seed !== '' && SEED_RE.test(a.seed)) params.seed = a.seed;
         params.from = o.player.id;
-        // A relative link (no application_url set) resolves on the page's own origin so others can open it.
-        var url = withQuery(o.pageUrl ? new URL(o.share, o.pageUrl).href : o.share, params);
+        // A relative link (no application_url set) resolves on the page's origin (never its full URL, which can
+        // carry user:pass@) so others can open it.
+        var url = withQuery(o.pageOrigin ? new URL(o.share, o.pageOrigin).href : o.share, params);
         var clean = shareText(a.text);
         var text = clean ? clean + ' ' + url : url;
         if (!o.clipboard || typeof o.clipboard.writeText !== 'function') throw fail('unavailable', 'Clipboard unavailable');
@@ -337,7 +338,7 @@
       player: parse(d.lpPlayer, null),
       challenge: d.lpLevel !== undefined && d.lpSeed !== undefined ? { level: d.lpLevel, seed: d.lpSeed } : null,
       share: d.lpShare,
-      pageUrl: win.location && win.location.href,
+      pageOrigin: win.location && win.location.origin,
       fetch: win.fetch.bind(win),
       clipboard: win.navigator && win.navigator.clipboard,
       onExit: close

@@ -2,7 +2,7 @@
     <section class="lp-hero">
         <img class="lp-hero-art" src="<?= $this->text->e($this->url->dir().$game['base_url'].($game['art']['hero'] ?? $game['art']['cover'])) ?>" alt="">
         <div class="lp-hero-body">
-            <?php if ($challenge !== null): ?>
+            <?php if ($challenge !== null && $challenge['best'] !== null): ?>
                 <p class="lp-challenge">
                     <?= t('Beat %s’s best: %s', $challenge['name'], $challenge['best']) ?>
                     <span class="lp-challenge-meta"><?= t('Level') ?> <?= $this->text->e($challenge['level']) ?> · <?= t('Seed') ?> <?= $this->text->e($challenge['seed']) ?></span>

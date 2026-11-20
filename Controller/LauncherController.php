@@ -95,9 +95,10 @@ class LauncherController extends BaseController
     }
 
     /**
-     * "Beat <name>'s best: <score>" data (the sharer's best on the challenged level, not the shared run's score) when level and seed
-     * match the score regexes and the `from` user has a best score for this game. Requiring a best means
-     * ?from=N only ever shows a name the leaderboard already shows.
+     * The shared level and seed when both match the score regexes and `from` is set: the run starts there. Name and
+     * best (the sharer's best on that level, not the shared run's score) are filled only when the `from` user has a
+     * score on that level, so ?from=N only shows the name of someone who has played it; otherwise they are null and
+     * the page shows no banner.
      */
     private function challenge(ScoreModel $scores, array $game): ?array
     {
@@ -108,11 +109,13 @@ class LauncherController extends BaseController
             || ! preg_match(ScoreModel::LEVEL_RE, $level) || ! preg_match(ScoreModel::SEED_RE, $seed)) {
             return null;
         }
+        $challenge = ['name' => null, 'best' => null, 'level' => $level, 'seed' => $seed];
         $best = isset($game['scoring']) ? $scores->best($game['slug'], $from, $game['scoring']['order'], $level) : null;
         $user = $best === null ? null : $this->userModel->getById($from);
-        if (empty($user)) {
-            return null;
+        if (! empty($user)) {
+            $challenge['name'] = $user['name'] ?: $user['username'];
+            $challenge['best'] = $best;
         }
-        return ['name' => $user['name'] ?: $user['username'], 'best' => $best, 'level' => $level, 'seed' => $seed];
+        return $challenge;
     }
 }
