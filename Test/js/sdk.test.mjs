@@ -136,7 +136,7 @@ test('a non-object argument rejects bad_request without posting', async () => {
 function fakeWindow(hash) {
   const parent = { posted: [], postMessage(msg, origin) { this.posted.push({ msg, origin }); } };
   const win = {
-    parent, location: { hash }, listeners: {},
+    parent, origin: 'null', location: { hash }, listeners: {},
     addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); },
     deliver(ev) { (this.listeners.message || []).forEach((fn) => fn(ev)); },
   };
@@ -169,13 +169,56 @@ test('install accepts replies only from parent', async () => {
   assert.deepEqual(await p, { level: 1 });
 });
 
-// Kills: posting to itself when the game is opened directly (not framed), or without a nonce.
-test('install outside a frame or without a nonce rejects unavailable', async () => {
-  const solo = fakeWindow('#lp=abc');
-  solo.parent = solo;
-  solo.postMessage = () => assert.fail('must not post to itself');
-  assert.equal((await settled(SDK.install(solo).ready())).e.code, 'unavailable');
+// Kills: posting without a nonce, which the host would silently ignore forever.
+test('install without a nonce rejects unavailable and posts nothing', async () => {
   const bare = fakeWindow('');
   assert.equal((await settled(SDK.install(bare).ready())).e.code, 'unavailable');
   assert.equal(bare.parent.posted.length, 0);
+});
+
+// A window with a document whose body (or root, when the SDK runs from <head>) records what replaced it.
+function withDocument(win, { body = true } = {}) {
+  const node = () => ({ textContent: 'game markup', innerHTML: 'untouched' });
+  win.document = { body: body ? node() : null, documentElement: node() };
+  win.stopped = 0;
+  win.stop = () => { win.stopped++; };
+  return win;
+}
+
+// Kills: installing the SDK (and letting the page's scripts run) when the game is opened top-level or framed
+// without the sandbox, where it would run with the Kanboard origin and the player's session.
+test('install refuses a top-level or same-origin window: stops loading, replaces the page, throws', () => {
+  const top = withDocument(fakeWindow('#lp=abc'));
+  top.parent = top;
+  top.origin = 'https://kb.test';
+  top.postMessage = () => assert.fail('must not post to itself');
+  const unsandboxed = withDocument(fakeWindow('#lp=abc'));
+  unsandboxed.origin = 'https://kb.test';
+  const opaqueButTop = withDocument(fakeWindow('#lp=abc'));
+  opaqueButTop.parent = opaqueButTop;
+  const noOrigin = withDocument(fakeWindow('#lp=abc'));
+  delete noOrigin.origin;
+  for (const [name, win] of Object.entries({ top, unsandboxed, opaqueButTop, noOrigin })) {
+    assert.throws(() => SDK.install(win), /LAN Party/, name);
+    assert.equal(win.LanParty, undefined, name);
+    assert.equal(win.stopped, 1, name);
+    assert.equal(win.document.body.textContent, 'Open this game from LAN Party', name);
+    assert.equal(win.document.body.innerHTML, 'untouched', name + ': textContent only');
+    assert.equal(win.parent === win ? 0 : win.parent.posted.length, 0, name);
+  }
+  // From <head> there is no body yet: the root element is replaced instead. No stop() is not fatal.
+  const head = withDocument(fakeWindow('#lp=abc'), { body: false });
+  head.origin = 'https://kb.test';
+  delete head.stop;
+  assert.throws(() => SDK.install(head), /LAN Party/);
+  assert.equal(head.document.documentElement.textContent, 'Open this game from LAN Party');
+});
+
+// Kills: a guard that also refuses the real case, an opaque-origin frame inside the launcher.
+test('install proceeds in an opaque-origin frame inside a parent', () => {
+  const win = withDocument(fakeWindow('#lp=abc'));
+  SDK.install(win).ready();
+  assert.equal(win.stopped, 0);
+  assert.equal(win.document.body.textContent, 'game markup');
+  assert.equal(win.parent.posted.length, 1);
 });

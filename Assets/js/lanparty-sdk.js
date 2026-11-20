@@ -1,8 +1,9 @@
 /*
  * LAN Party game SDK (inside the sandboxed game iframe). Plain ES2017, no dependencies.
  *
- * Load it with <script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>, then use the global
- * `LanParty`. Every call returns a Promise; rejections are {code, message} with code one of bad_request,
+ * Load it as the game page's FIRST script: <script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=<version>">
+ * </script>, then use the global `LanParty`. Opened outside the launcher's sandboxed iframe it stops the page and
+ * throws. Every call returns a Promise; rejections are {code, message} with code one of bad_request,
  * forbidden, missing, rate_limited, too_large, unavailable.
  *
  *   ready()                               -> {player: {id, name, avatar_url}, game: {slug, title, version},
@@ -95,8 +96,25 @@
     return { call: call, receive: receive, api: api };
   }
 
+  var REFUSED = 'Open this game from LAN Party';
+
+  /**
+   * Opened top-level (a new tab, a direct URL) or framed without the sandbox, the game would run with the
+   * Kanboard origin and the player's session: stop the page loading, replace it with a notice and throw, so
+   * neither the SDK nor any later script of the game runs. That is why the SDK must be the game's first script.
+   */
+  function refuseUnsandboxed(win) {
+    if (win.origin === 'null' && win.parent && win.parent !== win) return;
+    if (typeof win.stop === 'function') win.stop();
+    var doc = win.document;
+    var root = doc && (doc.body || doc.documentElement);
+    if (root) root.textContent = REFUSED;
+    throw new Error('LAN Party: the game was opened outside the launcher');
+  }
+
   /** Wires the SDK to a window: nonce from #lp=, posts to parent, replies only from parent. */
   function install(win) {
+    refuseUnsandboxed(win);
     var match = /(?:^#|&)lp=([^&]*)/.exec((win.location && win.location.hash) || '');
     var parent = win.parent && win.parent !== win ? win.parent : null;
     var client = createClient({
