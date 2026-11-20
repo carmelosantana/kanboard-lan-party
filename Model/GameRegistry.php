@@ -96,7 +96,7 @@ class GameRegistry extends Base
                 }
             }
             if ($entry['errors'] !== []) {
-                $this->logger->info('LanParty: skipping '.$entry['path'].': '.implode('; ', $entry['errors']));
+                $this->logger->warning('LanParty: skipping '.$entry['path'].': '.implode('; ', $entry['errors']));
             }
             $this->scanned[] = $entry;
         }

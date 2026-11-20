@@ -266,6 +266,8 @@ class GameRegistryTest extends Base
         $this->assertContains('LanParty: skipping '.$dupe['path'].': duplicate slug', $messages);
         $this->assertContains('LanParty: skipping '.$php['path'].': forbidden file: evil.php', $messages);
         $this->assertCount(2, array_filter($messages, fn ($m) => str_starts_with($m, 'LanParty: skipping')));
+        // Kills: logging at info, which default log levels drop: an admin would never see why a game is missing.
+        $this->assertSame([\Psr\Log\LogLevel::WARNING, \Psr\Log\LogLevel::WARNING], array_column($logger->records, 0));
     }
 
     public function testMissingManifestIsRejected(): void
