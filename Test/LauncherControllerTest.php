@@ -39,7 +39,7 @@ class LauncherControllerTest extends Base
     {
         $this->container['lanpartyGames'] = $registrations;
         unset($this->container['gameRegistry']);
-        $this->container['gameRegistry'] = fn ($c) => new \Kanboard\Plugin\LanParty\Model\GameRegistry($c);
+        $this->container['gameRegistry'] = fn ($c) => new \Kanboard\Plugin\LanParty\Model\GameRegistry($c, __DIR__.'/fixtures/games');
     }
 
     private function withEngine(): void

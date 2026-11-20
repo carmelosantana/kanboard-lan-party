@@ -22,6 +22,9 @@ class GameRegistryTest extends Base
 
     private array $tmpDirs = [];
 
+    /** The plugins root the registry under test resolves served paths against; tmpGame() moves it. */
+    private string $pluginsRoot = self::FIXTURES;
+
     protected function tearDown(): void
     {
         foreach ($this->tmpDirs as $dir) {
@@ -38,7 +41,7 @@ class GameRegistryTest extends Base
     private function registry(array $entries): GameRegistry
     {
         $this->container['lanpartyGames'] = $entries;
-        return new GameRegistry($this->container);
+        return new GameRegistry($this->container, $this->pluginsRoot);
     }
 
     private function adminEntry(GameRegistry $registry, string $path): array
@@ -56,6 +59,7 @@ class GameRegistryTest extends Base
     {
         $root = sys_get_temp_dir().'/lanparty-test-'.bin2hex(random_bytes(6));
         $this->tmpDirs[] = $root;
+        $this->pluginsRoot = $root;
         $path = $root.'/'.$plugin.'/Games/'.$folder;
         mkdir($path, 0777, true);
         copy(self::FIXTURES.'/good/Games/saltroad/game.json', $path.'/game.json');
@@ -294,6 +298,29 @@ class GameRegistryTest extends Base
         $this->assertRejected($entry, 'plugin does not match path');
     }
 
+    public function testGameOutsideThePluginsRootIsRejected(): void
+    {
+        // Kills: validating one folder while the launcher serves plugins/<plugin>/Games/<slug> from another.
+        $entry = $this->tmpGame();
+        $this->pluginsRoot = self::FIXTURES;
+        $this->assertRejected($entry, 'not served from plugins/Tmp/Games/saltroad');
+    }
+
+    public function testPathWithDotDotIsResolvedBeforeComparing(): void
+    {
+        // Kills: comparing the registered path as a string; `..` must resolve to the served folder.
+        $entry = $this->tmpGame();
+        $entry['path'] = $this->pluginsRoot.'/Tmp/../Tmp/Games/saltroad';
+        $this->assertSame(['saltroad'], array_keys($this->registry([$entry])->all()));
+    }
+
+    public function testPluginNameMustBeAnIdentifier(): void
+    {
+        // Kills: building base_url (plugins/<plugin>/…) from a plugin name with URL-significant characters.
+        $entry = $this->tmpGame('saltroad', 'My-Games');
+        $this->assertRejected($entry, 'plugin: must match ^[A-Za-z0-9_]+$');
+    }
+
     public function testPathNotUnderPluginGamesIsRejected(): void
     {
         // Kills: not requiring the <plugin>/Games/<slug> shape before building base_url.
@@ -367,6 +394,15 @@ class GameRegistryTest extends Base
         $this->assertSame([], $registry->allForAdmin());
     }
 
+    public function testPluginsRootDefaultsToPluginsDir(): void
+    {
+        // Kills: a default root other than PLUGINS_DIR (the shipped pop game would stop listing).
+        $this->container['lanpartyGames'] = [['plugin' => 'LanParty', 'path' => dirname(__DIR__).'/Games/pop']];
+        $this->assertSame(['pop'], array_keys((new GameRegistry($this->container))->all()));
+        $this->container['lanpartyGames'] = [$this->fixture('good', 'saltroad')];
+        $this->assertSame([], (new GameRegistry($this->container))->all());
+    }
+
     public function testPluginRegistersServiceAndAppendsWithoutOverwriting(): void
     {
         // Kills: initialize() overwriting lanpartyGames, or not registering the gameRegistry service.
@@ -376,6 +412,8 @@ class GameRegistryTest extends Base
 
         $this->assertSame($other, $this->container['lanpartyGames'][0]);
         $this->assertInstanceOf(GameRegistry::class, $this->container['gameRegistry']);
-        $this->assertSame('good', $this->container['gameRegistry']->get('saltroad')['plugin']);
+        // The service resolves against PLUGINS_DIR: the fixture (outside it) is scanned and refused, pop lists.
+        $this->assertCount(2, $this->container['gameRegistry']->allForAdmin());
+        $this->assertSame(['pop'], array_keys($this->container['gameRegistry']->all()));
     }
 }

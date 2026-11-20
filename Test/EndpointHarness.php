@@ -21,7 +21,7 @@ trait EndpointHarness
             ['plugin' => 'scored', 'path' => __DIR__.'/fixtures/games/scored/Games/arcade'],
             ['plugin' => 'good', 'path' => __DIR__.'/fixtures/games/good/Games/saltroad'],
         ];
-        $this->container['gameRegistry'] = fn ($c) => new GameRegistry($c);
+        $this->container['gameRegistry'] = fn ($c) => new GameRegistry($c, __DIR__.'/fixtures/games');
     }
 
     /** POST with a valid reusable CSRF token unless the caller overrides or drops it. */

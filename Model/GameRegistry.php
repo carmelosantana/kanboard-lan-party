@@ -2,6 +2,7 @@
 namespace Kanboard\Plugin\LanParty\Model;
 
 use Kanboard\Core\Base;
+use Pimple\Container;
 
 /**
  * Reads every folder registered in $container['lanpartyGames'] ([['plugin' => ..., 'path' => ...]]),
@@ -13,8 +14,19 @@ class GameRegistry extends Base
     /** Executed (PHP handlers) or refused by the web server. lanparty-host.js keeps the identical list. */
     public const BANNED_FILE = '/\\.(php\\d?|phtml|phar|phps|log|sqlite)$/i';
 
+    private const PLUGIN_PATTERN = '/^[A-Za-z0-9_]+$/';
+
     /** @var list<array>|null scan results, in registration order */
     private ?array $scanned = null;
+
+    /** Where plugins/<plugin>/ lives on disk: the folder validated must be the folder base_url serves. */
+    private string $pluginsRoot;
+
+    public function __construct(Container $container, ?string $pluginsRoot = null)
+    {
+        parent::__construct($container);
+        $this->pluginsRoot = $pluginsRoot ?? PLUGINS_DIR;
+    }
 
     /** slug ⇒ game (manifest + plugin, base_url, path) for valid, enabled games in registration order. */
     public function all(): array
@@ -105,6 +117,9 @@ class GameRegistry extends Base
         $folder = (string) end($parts);
         $base = ['slug' => $folder, 'plugin' => $plugin, 'path' => $path];
 
+        if (! preg_match(self::PLUGIN_PATTERN, $plugin)) {
+            return $base + ['errors' => ['plugin: must match ^[A-Za-z0-9_]+$']];
+        }
         if (count($parts) < 3 || $parts[count($parts) - 2] !== 'Games') {
             return $base + ['errors' => ['path must be <plugin>/Games/<slug>']];
         }
@@ -117,6 +132,9 @@ class GameRegistry extends Base
         }
         if (! is_dir($path)) {
             return $base + ['errors' => ['game folder missing']];
+        }
+        if (realpath($path) !== realpath($this->pluginsRoot.'/'.$plugin.'/Games/'.$folder)) {
+            return $base + ['errors' => ['not served from plugins/'.$plugin.'/Games/'.$folder]];
         }
         if (! is_file($path.'/game.json')) {
             return $base + ['errors' => ['game.json missing']];
