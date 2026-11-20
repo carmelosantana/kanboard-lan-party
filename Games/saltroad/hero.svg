@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 360" width="840" height="360">
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e98a4c"/>
+      <stop offset="0.55" stop-color="#f6c27a"/>
+      <stop offset="1" stop-color="#e8d2a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="840" height="360" fill="url(#dusk)"/>
+  <circle cx="610" cy="150" r="54" fill="#fff3d6"/>
+  <rect x="770" y="190" width="70" height="170" fill="#5d8fa3"/>
+  <path d="M0 220 Q160 170 320 210 T640 200 T840 215 V360 H0 Z" fill="#dcc08a"/>
+  <path d="M0 270 Q200 230 400 268 T840 262 V360 H0 Z" fill="#c9a66b"/>
+  <g fill="#2b1d12">
+    <path d="M220 236 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <path d="M300 232 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <path d="M380 230 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+    <path d="M460 232 q8 -22 22 -14 q6 -16 18 -4 l10 4 l8 -12 l6 3 l-6 16 l-6 2 l0 24 l-5 0 l-2 -20 l-24 0 l-3 20 l-5 0 l0 -20 z"/>
+  </g>
+  <path d="M20 300 C200 320 400 280 560 300 S760 320 840 296" fill="none" stroke="#fff8ea" stroke-width="3" stroke-dasharray="8 10"/>
+  <text x="40" y="100" font-family="Georgia, serif" font-size="64" font-weight="700" letter-spacing="5" fill="#2b1d12">SALTROAD</text>
+  <text x="44" y="136" font-family="Georgia, serif" font-size="22" fill="#2b1d12">Lead a salt caravan from the inland pans to the sea.</text>
+</svg>
