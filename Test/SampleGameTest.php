@@ -88,7 +88,9 @@ class SampleGameTest extends Base
         );
         $this->container['lanpartyGames'] = [];
         (new Plugin($this->container))->initialize();
-        $this->assertSame(['pop'], array_keys($this->container['gameRegistry']->all()));
+        $shipped = array_map('basename', glob(self::GAMES.'/*', GLOB_ONLYDIR) ?: []);
+        $this->assertContains('pop', $shipped);
+        $this->assertSame($shipped, array_keys($this->container['gameRegistry']->all()));
     }
 
     public function testNoShippedGameFileBreaksThePathRules(): void
