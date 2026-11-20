@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-11-20
 
 - Game launcher page with rows of game cards, a hero banner and per-game pages.
 - Game registry: games are static folders registered through `lanpartyGames`, checked against the v1 manifest
