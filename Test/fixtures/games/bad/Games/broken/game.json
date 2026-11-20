@@ -1,0 +1,13 @@
+{
+  "slug": "broken",
+  "title": "Broken",
+  "version": "0.1.0",
+  "kind": "mod",
+  "licence": "MIT",
+  "content_licence": "CC-BY-4.0",
+  "entry": "index.html",
+  "art": { "cover": "cover.svg" },
+  "players": { "min": 1, "max": 1 },
+  "modes": ["solo"],
+  "files": []
+}

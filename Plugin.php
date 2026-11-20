@@ -2,11 +2,21 @@
 namespace Kanboard\Plugin\LanParty;
 
 use Kanboard\Core\Plugin\Base;
+use Kanboard\Plugin\LanParty\Model\GameRegistry;
 
 class Plugin extends Base
 {
     public function initialize(): void
     {
+        $this->container['gameRegistry'] = function ($c) {
+            return new GameRegistry($c);
+        };
+
+        $ownGames = array_map(
+            fn (string $path) => ['plugin' => 'LanParty', 'path' => $path],
+            glob(__DIR__.'/Games/*', GLOB_ONLYDIR) ?: []
+        );
+        $this->container['lanpartyGames'] = array_merge($this->container['lanpartyGames'] ?? [], $ownGames);
     }
 
     public function getPluginName(): string        { return 'LanParty'; }
