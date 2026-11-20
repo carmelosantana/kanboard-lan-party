@@ -113,3 +113,20 @@ test('the score never passes MAX_SCORE', () => {
   assert.equal(s.score, Pop.MAX_SCORE);
   assert.equal(Pop.MAX_SCORE, 100000);
 });
+
+// Kills: Share enabled before a score is in (a challenge link needs the sharer's score), or Submit left
+// clickable during play, while pending, after success or after a refusal that would only repeat.
+test('resultButtons: Submit once per finished run, Share only after a successful submit', () => {
+  const at = (over, submit) => Pop.resultButtons({ over, submit });
+  assert.deepEqual(at(false, 'idle'), { submit: true, share: true });
+  assert.deepEqual(at(true, 'idle'), { submit: false, share: true });
+  assert.deepEqual(at(true, 'pending'), { submit: true, share: true });
+  assert.deepEqual(at(true, 'done'), { submit: true, share: false });
+  assert.deepEqual(at(true, 'failed'), { submit: true, share: true });
+});
+
+// Kills: showing "Rank #0" (agent users are kept off the boards and get rank 0).
+test('submitText leaves the rank out when it is 0', () => {
+  assert.equal(Pop.submitText({ accepted: true, rank: 3, best: 120 }), 'Rank #3 · your best 120');
+  assert.equal(Pop.submitText({ accepted: true, rank: 0, best: 120 }), 'Your best 120');
+});

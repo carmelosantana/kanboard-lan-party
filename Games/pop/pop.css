@@ -18,8 +18,8 @@ html, body {
 }
 
 #field {
-  height: 100%;
-  max-width: 100%;
+  width: min(100%, 75vh); /* 3:4 contained in the frame: full height when wide, full width when narrow */
+  height: auto;
   aspect-ratio: 3 / 4;
   background: linear-gradient(#1d3461, #14213d);
   touch-action: none;

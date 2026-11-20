@@ -113,6 +113,19 @@
     s.combo = 0;
   }
 
+  /**
+   * Which results buttons are disabled. run.submit is idle | pending | done | failed. Share waits for a
+   * successful submit: a challenge link only shows a challenge once the sharer has a score.
+   */
+  function resultButtons(run) {
+    return { submit: !run.over || run.submit !== 'idle', share: run.submit !== 'done' };
+  }
+
+  /** The status line after a submit; rank is 0 for players kept off the boards, so leave it out then. */
+  function submitText(r) {
+    return r.rank > 0 ? 'Rank #' + r.rank + ' · your best ' + r.best : 'Your best ' + r.best;
+  }
+
   // ── Browser game ───────────────────────────────────────────────────────────
 
   function start(win, doc, sdk) {
@@ -126,8 +139,9 @@
 
     let levels = null;
     let bestStreak = 0;
+    let bestLoaded = false; // false when load() failed: never overwrite a save we could not read
     let firstRun = { level: '1', seed: '' }; // the challenge, when the game was opened from one
-    let run = null; // {cfg, seed, plan, next, live, rings, score, startedAt, lastFrame, shakeUntil, over}
+    let run = null; // {cfg, seed, plan, next, live, rings, score, startedAt, lastFrame, shakeUntil, over, submit}
     let cursor = null; // keyboard reticle, shown once an arrow key is used
 
     const dpr = win.devicePixelRatio || 1;
@@ -164,8 +178,10 @@
         startedAt: win.performance.now(),
         lastFrame: 0,
         shakeUntil: 0,
-        over: false
+        over: false,
+        submit: 'idle'
       };
+      updateButtons();
       show(null);
       say('');
       win.requestAnimationFrame(frame);
@@ -266,31 +282,42 @@
       ctx.fillText(left + 's', FIELD.width - 16, 32);
     }
 
+    function updateButtons() {
+      const disabled = resultButtons(run);
+      doc.getElementById('submit').disabled = disabled.submit;
+      doc.getElementById('share').disabled = disabled.share;
+    }
+
     function finish() {
       const s = run.score;
       run.over = true;
       if (s.bestCombo > bestStreak) {
         bestStreak = s.bestCombo;
-        sdk.save({ bestStreak: bestStreak }).catch(function () {});
+        if (bestLoaded) sdk.save({ bestStreak: bestStreak }).catch(function () {});
       }
       doc.getElementById('final-score').textContent = String(s.score);
       doc.getElementById('final-pops').textContent = String(s.pops);
       doc.getElementById('final-streak').textContent = String(s.bestCombo);
       doc.getElementById('best-streak').textContent = String(bestStreak);
-      doc.getElementById('submit').disabled = false;
+      updateButtons();
       show(results);
       say('Level ' + run.cfg.level + ' · seed ' + run.seed);
     }
 
     function submit() {
-      const button = doc.getElementById('submit');
-      button.disabled = true;
-      const s = run.score;
-      sdk.submitScore({ score: s.score, level: run.cfg.level, seed: run.seed, meta: { streak: s.bestCombo } })
-        .then(function (r) { say('Rank #' + r.rank + ' · your best ' + r.best); })
+      const submitted = run;
+      submitted.submit = 'pending';
+      updateButtons();
+      const s = submitted.score;
+      sdk.submitScore({ score: s.score, level: submitted.cfg.level, seed: submitted.seed, meta: { streak: s.bestCombo } })
+        .then(function (r) {
+          submitted.submit = 'done';
+          if (run === submitted) { updateButtons(); say(submitText(r)); }
+        })
         .catch(function (e) {
-          if (e.code === 'rate_limited' || e.code === 'unavailable') button.disabled = false; // worth a retry
-          say(errorText(e));
+          // Rate limits and outages are worth a retry; any other refusal would only repeat.
+          submitted.submit = e.code === 'rate_limited' || e.code === 'unavailable' ? 'idle' : 'failed';
+          if (run === submitted) { updateButtons(); say(errorText(e)); }
         });
     }
 
@@ -351,7 +378,11 @@
         if (challenge) {
           doc.getElementById('intro-note').textContent = 'Challenge: level ' + challenge.level + ', seed ' + challenge.seed;
         }
-        return Promise.all([sdk.asset('levels.json'), sdk.load().catch(function () { return null; })]);
+        const best = sdk.load().then(
+          function (saved) { bestLoaded = true; return saved; },
+          function () { return null; }
+        );
+        return Promise.all([sdk.asset('levels.json'), best]);
       })
       .then(function (loaded) {
         levels = JSON.parse(new TextDecoder().decode(loaded[0]));
@@ -379,7 +410,9 @@
     multiplier: multiplier,
     createScore: createScore,
     scorePop: scorePop,
-    breakCombo: breakCombo
+    breakCombo: breakCombo,
+    resultButtons: resultButtons,
+    submitText: submitText
   };
 
   if (typeof module !== 'undefined' && module.exports) {
