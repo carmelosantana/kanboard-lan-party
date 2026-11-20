@@ -367,7 +367,7 @@ test('submitText leaves the rank out when it is 0', () => {
 
 // Kills: a save that is not shaped the way the game reads it back (a stale or foreign save must not crash).
 test('readSave accepts its own shape and shrugs off anything else', () => {
-  const s = fresh();
+  const s = Object.assign(fresh(), { day: 1 });
   assert.deepEqual(S.readSave({ v: 1, best: { 1: 300 }, journey: s }), { best: { 1: 300 }, journey: s });
   assert.deepEqual(S.readSave(null), { best: {}, journey: null });
   assert.deepEqual(S.readSave({ v: 1, best: 'x', journey: { phase: 'camp' } }), { best: {}, journey: null });
@@ -415,7 +415,7 @@ test('a post refuses water when the skins are full', () => {
 
 // Kills: dropping readSave's number and event-card checks (M1), or accepting a waypoint past the route's end (M2).
 test('readSave drops journeys with broken numbers, unknown cards or a waypoint off the route', () => {
-  const s = fresh();
+  const s = Object.assign(fresh(), { day: 1 });
   const keep = (j) => S.readSave({ v: 1, best: {}, journey: j }, ROUTES).journey;
   assert.deepEqual(keep(s), s);
   assert.equal(keep(Object.assign({}, s, { day: 1.5 })), null);
@@ -434,6 +434,24 @@ test('abandonNote names the journey a new start would replace, or nothing', () =
   assert.equal(S.abandonNote(null, ROUTES), '');
   const j = Object.assign(S.newJourney(LONG, 'x'), { day: 30 });
   assert.equal(S.abandonNote(j, ROUTES), 'This replaces your saved journey on The Long Road (day 30).');
+});
+
+// ── E2E fix round ───────────────────────────────────────────────────────────
+
+// Kills: saving the journey the moment it is set out, which offered "Continue (day 0)" for a trip never taken.
+test('saveData keeps a journey only once it is on the road, and never a finished one', () => {
+  const best = { 1: 300 };
+  assert.deepEqual(S.saveData(best, null), { v: 1, best, journey: null });
+  assert.equal(S.saveData(best, fresh()).journey, null, 'day 0: nothing done yet');
+  const onRoad = Object.assign(fresh(), { day: 1 });
+  assert.deepEqual(S.saveData(best, onRoad), { v: 1, best, journey: onRoad });
+  assert.equal(S.saveData(best, Object.assign({}, onRoad, { phase: 'over' })).journey, null);
+});
+
+// Kills: an older save holding a day-0 journey still offering "Continue (day 0)" or a replace warning.
+test('readSave drops a journey saved before day 1', () => {
+  const read = S.readSave({ v: 1, best: { 1: 300 }, journey: fresh() }, ROUTES);
+  assert.deepEqual(read, { best: { 1: 300 }, journey: null });
 });
 
 // Kills: more than one save in flight (M4), lost coalesced saves, or a final save that is not awaited.

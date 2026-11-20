@@ -16,7 +16,7 @@ A trail-journey survival game for LAN Party. Lead a salt caravan from the inland
 - **Score:** bars delivered × days bonus, where the bonus is the days left on the route's deadline (at least 1).
 - Keyboard: Tab and Enter (or Space) work everywhere; keys 1–3 answer a card.
 
-The journey saves after every move: Continue picks it up next time. Submit your score at the market, then Share
+The journey saves after every move from day 1 on: Continue picks it up next time. Submit your score at the market, then Share
 a challenge: the same route and seed deal the same cards with the same luck.
 
 ## Levels

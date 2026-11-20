@@ -59,8 +59,9 @@
     // ── Saving ───────────────────────────────────────────────────────────────
 
     function payload() {
-      saved.journey = run && !run.over ? run.s : null;
-      return { v: 1, best: saved.best, journey: saved.journey };
+      const data = C.saveData(saved.best, run && !run.over ? run.s : null);
+      saved.journey = data.journey;
+      return data;
     }
 
     /** Every save goes through one queue: one in flight, later changes coalesced into the next. */

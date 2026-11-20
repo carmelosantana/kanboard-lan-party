@@ -566,8 +566,8 @@
   }
 
   /**
-   * The saved {best, journey}; anything unreadable becomes an empty save, and a finished journey is dropped.
-   * With `routes`, a journey on a route that no longer exists, or past its last leg, is dropped too.
+   * The saved {best, journey}; anything unreadable becomes an empty save, and a finished journey, or one saved
+   * before day 1 (nothing done yet), is dropped. With `routes`, a journey on a route that no longer exists, or past its last leg, is dropped too.
    */
   function readSave(saved, routes) {
     const out = { best: {}, journey: null };
@@ -582,6 +582,7 @@
     if (j && typeof j === 'object' && typeof j.level === 'string' && typeof j.seed === 'string' &&
         ['camp', 'event', 'post'].indexOf(j.phase) !== -1 && Array.isArray(j.diary) &&
         numbers.every(function (k) { return Number.isInteger(j[k]); }) &&
+        j.day >= 1 &&
         (j.phase !== 'event' || (j.card && own(CARDS, j.card.kind)))) {
       out.journey = j;
     }
@@ -590,6 +591,14 @@
       if (!route || j.wp < 0 || j.wp > route.waypoints.length - 2) out.journey = null;
     }
     return out;
+  }
+
+  /**
+   * What gets saved: the bests, plus the journey `s` only while it is on the road. A journey not yet past day 0
+   * holds nothing that Play would not give back, so it is not kept (no "Continue (day 0)"); nor is a finished one.
+   */
+  function saveData(best, s) {
+    return { v: 1, best: best, journey: s && s.phase !== 'over' && s.day >= 1 ? s : null };
   }
 
   /** The warning shown before a new start replaces a saved journey; '' when there is none. */
@@ -688,6 +697,7 @@
     resultButtons: resultButtons,
     submitText: submitText,
     readSave: readSave,
+    saveData: saveData,
     abandonNote: abandonNote,
     saveQueue: saveQueue,
     paceHint: paceHint,
