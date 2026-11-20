@@ -471,3 +471,29 @@ test('pace and ration hints are written from PACES and RATIONS', () => {
   assert.match(S.paceHint('rest'), /stay put/);
   for (const k of Object.keys(S.RATIONS)) assert.match(S.rationHint(k), new RegExp('^' + S.RATIONS[k].food + ' food'));
 });
+
+// ── Fix round 2 ──────────────────────────────────────────────────────────────
+
+// Kills: the market's early return in settle() skipping the clamps (N1): "Crew vigour -26" on the results HUD.
+test('no resource goes negative or over its cap when the caravan arrives spent', () => {
+  const deck = S.buildDeck(SHORT, 'abc');
+  const last = SHORT.waypoints.length - 2;
+  for (const over of [{ vigour: 2, water: 0, food: 0 }, { strength: 3, salt: 48 }, { vigour: 1, strength: 1, water: 0, food: 0 }]) {
+    const s = S.travelDay(parked(Object.assign({ wp: last, mi: 10 }, over)), SHORT, deck, { pace: 'hard', rations: 'full' });
+    assert.equal(s.end, 'delivered', JSON.stringify(over));
+    for (const k of ['water', 'food', 'strength', 'vigour', 'coin', 'salt', 'camels']) assert.ok(s[k] >= 0, k + ' ' + s[k]);
+    assert.ok(s.water <= S.WATER_MAX && s.food <= S.FOOD_MAX && s.strength <= 100 && s.vigour <= 100);
+  }
+});
+
+// Kills: the rest hint drifting from PACES.rest.water (nit from review 2).
+test('the rest hint shows the water a rest day costs', () => {
+  assert.equal(S.paceHint('rest'), 'stay put, ' + S.PACES.rest.water + ' water, recover');
+  const was = S.PACES.rest.water;
+  try {
+    S.PACES.rest.water = 7; // a retune must reach the hint, not a figure typed into it
+    assert.equal(S.paceHint('rest'), 'stay put, 7 water, recover');
+  } finally {
+    S.PACES.rest.water = was;
+  }
+});

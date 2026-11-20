@@ -333,14 +333,11 @@
     }
   }
 
-  /** Clamps every resource, loses spent camels and their loads, and ends the journey if the caravan is spent. */
+  /**
+   * Clamps every resource, then (unless the journey is already over: at the market the books are closed) loses
+   * spent camels and their loads, and ends the journey if the caravan is spent.
+   */
   function settle(s) {
-    if (s.phase === 'over') return s; // at the market (or already stranded): the journey's books are closed
-    if (s.strength <= 0 && s.camels > 0) {
-      s.camels--;
-      s.strength = 35;
-      note(s, DIARY.camelLost);
-    }
     s.camels = clamp(s.camels, 0, MAX_CAMELS);
     s.water = clamp(s.water, 0, WATER_MAX);
     s.food = clamp(s.food, 0, FOOD_MAX);
@@ -348,6 +345,12 @@
     s.vigour = clamp(s.vigour, 0, 100);
     s.coin = Math.max(0, s.coin);
     s.salt = Math.max(0, s.salt);
+    if (s.phase === 'over') return s;
+    if (s.strength <= 0 && s.camels > 0) {
+      s.camels--;
+      s.strength = 35;
+      note(s, DIARY.camelLost);
+    }
     if (s.salt > capacity(s) && s.camels > 0) {
       note(s, fillIn(DIARY.leftBehind, { n: s.salt - capacity(s) }));
       s.salt = capacity(s);
