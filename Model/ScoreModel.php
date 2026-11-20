@@ -126,12 +126,16 @@ class ScoreModel extends Base
         return $out;
     }
 
-    public function best(string $slug, int $userId, string $order): ?int
+    /** The user's best for a game, or for one level of it when $level is given. */
+    public function best(string $slug, int $userId, string $order, ?string $level = null): ?int
     {
-        $best = $this->db->table(self::TABLE)
+        $query = $this->db->table(self::TABLE)
             ->eq('game_slug', $slug)
-            ->eq('user_id', $userId)
-            ->findOneColumn(($order === 'low' ? 'MIN' : 'MAX').'(score) AS best');
+            ->eq('user_id', $userId);
+        if ($level !== null) {
+            $query->eq('level', $level);
+        }
+        $best = $query->findOneColumn(($order === 'low' ? 'MIN' : 'MAX').'(score) AS best');
         return $best === null || $best === false ? null : (int) $best;
     }
 

@@ -61,8 +61,9 @@ class LauncherController extends BaseController
             'challenge' => $this->challenge($scores, $game),
             'csrf' => $this->token->getReusableCSRFToken(),
             'player' => $this->player(),
-            // Absolute (application_url, else the request host) so a copied challenge link works anywhere.
-            'share' => $this->helper->url->to('LauncherController', 'game', ['plugin' => 'LanParty', 'slug' => $slug], '', true),
+            // Absolute on application_url when it is set. Otherwise relative: Kanboard's fallback base is a fixed
+            // http://localhost/, so the host resolves the link against the page's own address instead.
+            'share' => $this->helper->url->to('LauncherController', 'game', ['plugin' => 'LanParty', 'slug' => $slug], '', $this->configModel->get('application_url') !== ''),
             // url->to(), not href(): href() pre-escapes & as &amp;, and the whole JSON is escaped once in the template.
             'endpoints' => [
                 'score' => $endpoint('ScoreController', 'submit'),
@@ -94,7 +95,7 @@ class LauncherController extends BaseController
     }
 
     /**
-     * "Beat <name>'s best: <score>" data (the sharer's best, not the shared run's score) when level and seed
+     * "Beat <name>'s best: <score>" data (the sharer's best on the challenged level, not the shared run's score) when level and seed
      * match the score regexes and the `from` user has a best score for this game. Requiring a best means
      * ?from=N only ever shows a name the leaderboard already shows.
      */
@@ -107,7 +108,7 @@ class LauncherController extends BaseController
             || ! preg_match(ScoreModel::LEVEL_RE, $level) || ! preg_match(ScoreModel::SEED_RE, $seed)) {
             return null;
         }
-        $best = $this->best($scores, $game, $from);
+        $best = isset($game['scoring']) ? $scores->best($game['slug'], $from, $game['scoring']['order'], $level) : null;
         $user = $best === null ? null : $this->userModel->getById($from);
         if (empty($user)) {
             return null;

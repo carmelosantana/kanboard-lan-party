@@ -206,7 +206,9 @@ class LauncherControllerTest extends Base
     public function testChallengeBanner(): void
     {
         $game = $this->container['gameRegistry']->get('arcade');
-        (new ScoreModel($this->container))->submit($game, 2, 640, null, null, null);
+        foreach (['l-1.x_', '1', str_repeat('a', 32)] as $i => $level) {
+            (new ScoreModel($this->container))->submit($game, 2, 640, $level, null, null, 1000 + $i * 10);
+        }
         $html = $this->render('game', ['slug' => 'arcade', 'level' => 'l-1.x_', 'seed' => 's1', 'from' => '2']);
         $this->assertStringContainsString('Beat Amy’s best: 640', $html);
         $this->assertStringContainsString('l-1.x_', $html);
@@ -234,6 +236,18 @@ class LauncherControllerTest extends Base
         $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'saltroad', 'level' => '1', 'seed' => 's', 'from' => '2']));
     }
 
+    // Kills: a banner quoting the sharer's best on another level (a level-1 900 on a level-5 challenge), or a
+    // banner for a level the sharer never scored on.
+    public function testChallengeBannerQuotesTheChallengedLevel(): void
+    {
+        $game = $this->container['gameRegistry']->get('arcade');
+        $scores = new ScoreModel($this->container);
+        $scores->submit($game, 2, 900, '1', null, null, 1000);
+        $scores->submit($game, 2, 500, '5', null, null, 1010);
+        $this->assertStringContainsString('Beat Amy’s best: 500', $this->render('game', ['slug' => 'arcade', 'level' => '5', 'seed' => 's', 'from' => '2']));
+        $this->assertStringNotContainsString('Beat ', $this->render('game', ['slug' => 'arcade', 'level' => '7', 'seed' => 's', 'from' => '2']));
+    }
+
     // Kills: dropping or mis-building any host attribute (base, game, player, share), or emitting level/seed
     // without a valid challenge.
     public function testPlayButtonHostAttributes(): void
@@ -243,13 +257,14 @@ class LauncherControllerTest extends Base
         $this->assertSame('/plugins/engines/Games/doomish/', $this->playAttr($html, 'base'));
         $this->assertSame(['slug' => 'doomish', 'title' => 'Doomish', 'version' => '0.1.0'], json_decode($this->playAttr($html, 'game'), true));
         $this->assertSame(['id' => 2, 'name' => 'Amy', 'avatar_url' => null], json_decode($this->playAttr($html, 'player'), true));
-        $this->assertSame('http://localhost/?controller=LauncherController&action=game&plugin=LanParty&slug=doomish', $this->playAttr($html, 'share'));
+        // No application_url: a relative link the host resolves on the page's own origin, never http://localhost/.
+        $this->assertSame('/?controller=LauncherController&action=game&plugin=LanParty&slug=doomish', $this->playAttr($html, 'share'));
         $this->assertNull($this->playAttr($html, 'level'));
         $this->assertNull($this->playAttr($html, 'seed'));
 
 
         $game = $this->container['gameRegistry']->get('arcade');
-        (new ScoreModel($this->container))->submit($game, 2, 640, null, null, null);
+        (new ScoreModel($this->container))->submit($game, 2, 640, 'l2', null, null);
         $html = $this->render('game', ['slug' => 'arcade', 'level' => 'l2', 'seed' => 'abc', 'from' => '2']);
         $this->assertSame('l2', $this->playAttr($html, 'level'));
         $this->assertSame('abc', $this->playAttr($html, 'seed'));

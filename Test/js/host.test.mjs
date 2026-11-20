@@ -384,6 +384,25 @@ test('share builds the challenge link, copies text + link and resolves {url}', a
   assert.equal(r2.msg.result.url, SHARE + '&from=2');
 });
 
+// Kills: copying a relative or http://localhost/ link when Kanboard has no application_url: the link must be
+// absolute on the page's own origin so another player can open it.
+test('share resolves a relative game URL against the page URL', async () => {
+  const replies = [];
+  const frameWin = { postMessage: (msg) => replies.push(msg) };
+  const clipboard = { written: [], writeText(t) { this.written.push(t); return Promise.resolve(); } };
+  const host = H.createHost({
+    iframe: { contentWindow: frameWin }, nonce: NONCE, endpoints: ENDPOINTS, csrf: 'tok123',
+    base: '/plugins/scored/Games/arcade/', player: PLAYER, game: GAME,
+    share: '/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade',
+    pageUrl: 'http://kb.lan:8083/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade',
+    challenge: null, fetch: async () => res(200, {}), clipboard, onExit: () => {},
+  });
+  await host.handleMessage({ source: frameWin, data: { lp: 1, id: 1, nonce: NONCE, op: 'share', args: { level: 'l2', seed: 'abc' } } });
+  const url = 'http://kb.lan:8083/kanboard/?controller=LauncherController&action=game&plugin=LanParty&slug=arcade&level=l2&seed=abc&from=2';
+  assert.deepEqual(replies.at(-1).result, { url });
+  assert.deepEqual(clipboard.written, [url]);
+});
+
 // Kills: copying raw game text: unbounded length, or control characters/newlines into the user's clipboard.
 test('share strips control characters and caps the text at 280 chars', async () => {
   const { send, clipboard } = setup();
