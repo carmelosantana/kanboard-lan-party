@@ -18,7 +18,7 @@ exactly `LanParty`: every game loads the SDK from `../../../LanParty/Assets/js/l
 LAN Party ships one sample game, `Pop` (`Games/pop`). Other plugins can register their own games.
 Each game is a folder of static files that runs in a sandboxed iframe and talks to the launcher
 only through `lanparty-sdk.js`. The rules for game authors are in
-[docs/game-contract.md](docs/game-contract.md).
+[docs/game-contract.md](https://github.com/carmelosantana/kanboard-lan-party/blob/main/docs/game-contract.md).
 
 ## Development
 

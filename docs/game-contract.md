@@ -28,7 +28,7 @@ The registry rejects (and logs) a game whose folder breaks any of these rules:
 | No symlinks. | Nothing may point outside the folder. |
 
 Paths a game names (`entry`, `art.cover`, `art.hero`, and every `asset()` path) are relative to the game folder
-and may not contain `..`, start with `/` or `\`, or contain `:`, `%`, `?` or `#`. Keep file names to letters,
+and may not contain `..`, start with `/`, or contain `\`, `:`, `%`, `?` or `#` anywhere. Keep file names to letters,
 digits, `-`, `_` and `.`.
 
 ## Manifest `game.json`
@@ -189,9 +189,13 @@ instead and the call rejects `unavailable`. Check that every asset you load ship
 ```js
 let clicks = 0;
 
-LanParty.ready().then(function (info) {
-  document.getElementById('greeting').textContent = 'Hello, ' + info.player.name;
-});
+LanParty.ready()
+  .then(function (info) {
+    document.getElementById('greeting').textContent = 'Hello, ' + info.player.name;
+  })
+  .catch(function (e) {
+    document.getElementById('greeting').textContent = 'Hello could not start: ' + e.message;
+  });
 
 document.getElementById('click').addEventListener('click', function () {
   clicks++;
@@ -204,5 +208,7 @@ document.getElementById('done').addEventListener('click', function () {
 });
 ```
 
-Add a `cover.svg` and the game appears on the launcher. For seeded challenges, saves and assets, read
-`Games/pop/pop.js`.
+Add the `cover.svg` too: the registry does not check that art files exist, so a missing cover shows as a broken
+image on the launcher. A folder under `LanParty/Games/` is listed automatically; a game in another plugin also
+needs the snippet from "Registration" in that plugin's `initialize()`. For seeded challenges, saves and assets,
+read `Games/pop/pop.js`.
