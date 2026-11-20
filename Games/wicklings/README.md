@@ -17,7 +17,9 @@ enough of them reach the lantern before their wicks burn down.
 - Mouse: click a job button, then click a wickling. Keyboard: 1 to 5 picks a job, Left/Right (or A/D) picks a
   wickling, Space or Enter hands the job over. P or Escape pauses (you can still hand out jobs), S steps one
   tick while paused, F runs at triple speed.
-- **End** stops the level early and counts who is home: useful once your last wicklings are safe.
+- A level ends by itself when everyone is home, snuffed or blocking, when the clock runs out, or once no job is
+  left to give and nothing can change any more (the last wicklings only pace back and forth). **End** stops it
+  sooner and counts who is home: useful when you have jobs left but do not mean to use them.
 
 ## Score
 

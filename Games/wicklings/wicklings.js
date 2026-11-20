@@ -308,7 +308,7 @@
         score: Sim.score(s),
         level: submitted.level.id,
         seed: submitted.seed,
-        meta: { saved: s.saved, need: s.level.need, jobs: s.log.length }
+        meta: { saved: s.saved, need: s.level.need, jobs: Sim.jobsUsed(s) }
       })
         .then(function (r) {
           submitted.submit = 'done';

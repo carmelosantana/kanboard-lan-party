@@ -148,7 +148,8 @@
       saved: 0,
       lost: 0,
       log: [],
-      over: false
+      over: false,
+      seen: null // state keys seen since no job could be given any more (see stuck())
     };
   }
 
@@ -269,7 +270,9 @@
     }
     if (w.state === 'build') {
       const nx = w.x + w.dir;
-      const gap = w.y + 1 < s.h && !solid(s, nx, w.y + 1) && !solid(s, nx, w.y) && !blockerAt(s, nx, w.y, w);
+      // Planks go only over open air or water: never over the lantern or the door.
+      const below = tileAt(s, nx, w.y + 1);
+      const gap = w.y + 1 < s.h && (below === '.' || below === '~') && !solid(s, nx, w.y);
       if (!gap) return walkStep(s, w);
       if (++w.work < WORK_TICKS) return;
       w.work = 0;
@@ -334,7 +337,38 @@
     const settled = s.released === s.level.count && s.walkers.every(function (w) {
       return finished(w) || w.state === 'block';
     });
-    if (settled || s.tick >= limitTicks(s)) s.over = true;
+    if (settled || s.tick >= limitTicks(s) || stuck(s)) s.over = true;
+  }
+
+  /** True while some job in stock could still be given to a wickling that is not home or snuffed. */
+  function jobsStillUseful(s) {
+    return JOBS.some(function (job) {
+      if (!(s.jobs[job] > 0)) return false;
+      return s.walkers.some(function (w) {
+        if (finished(w)) return false;
+        if (job === 'climber' || job === 'floater') return !w[job];
+        return w.state !== 'block'; // a blocker never walks again; anyone else may yet stand on firm ground
+      });
+    });
+  }
+
+  /**
+   * Nothing can change any more: everyone is out of the door, no job can be given, and the world has been in
+   * exactly this state before. With no input left the sim is a pure function of this state, so it would loop
+   * for ever; ending now keeps the time bonus.
+   */
+  function stuck(s) {
+    if (s.released < s.level.count || jobsStillUseful(s)) return false;
+    let key = s.tiles;
+    s.walkers.forEach(function (w) {
+      if (!finished(w)) {
+        key += '|' + [w.id, w.x, w.y, w.dir, w.state, w.work, w.fall, w.planks, w.drift, w.climber, w.floater].join(',');
+      }
+    });
+    if (!s.seen) s.seen = Object.create(null);
+    if (s.seen[key]) return true;
+    s.seen[key] = true;
+    return false;
   }
 
   /** Why wickling `id` cannot take `job` right now, in a few words; '' when it can. */
@@ -392,6 +426,11 @@
     return s;
   }
 
+  /** Jobs handed out in this run (End is in the log too, but is not a job). */
+  function jobsUsed(s) {
+    return s.log.filter(function (e) { return e.job !== 'end'; }).length;
+  }
+
   function won(s) {
     return s.saved >= s.level.need;
   }
@@ -447,7 +486,9 @@
   function recordResult(save, order, id, points, didWin) {
     if (!(save.best[id] >= points)) save.best[id] = points;
     const at = order.indexOf(id);
-    if (didWin && at !== -1) save.unlocked = Math.max(save.unlocked, Math.min(order.length, at + 2));
+    // Only a level that was open in the normal order unlocks the next: a challenge win on a locked level
+    // does not open the levels before it.
+    if (didWin && at !== -1 && at < save.unlocked) save.unlocked = Math.max(save.unlocked, Math.min(order.length, at + 2));
     return save;
   }
 
@@ -476,6 +517,7 @@
     end: end,
     replay: replay,
     won: won,
+    jobsUsed: jobsUsed,
     secondsLeft: secondsLeft,
     score: score,
     summary: summary,

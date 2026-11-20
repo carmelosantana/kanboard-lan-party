@@ -78,3 +78,21 @@ test('every level after the first is lost when no job is handed out', () => {
   while (!first.over) W.step(first);
   assert.equal(W.won(first), true);
 });
+
+// Kills: levels where the last wicklings pace with no job left running to the clock (losing the time bonus).
+test('levels 5 and 9 end early with a time bonus once every knack is used', () => {
+  const { byId } = W.parseLevels(JSON_LEVELS);
+  const ids = (n) => Array.from({ length: n }, (_, i) => i);
+  const plans = {
+    '5': ids(5).map((id) => ({ id, job: 'climber' })),
+    '9': ids(6).flatMap((id) => [{ id, job: 'climber' }, { id, job: 'floater' }])
+  };
+  for (const id of ['5', '9']) {
+    const lv = byId[id];
+    const s = solve(lv, plans[id]);
+    assert.equal(W.won(s), true, id);
+    assert.ok(s.tick < lv.seconds * W.TICK_HZ / 2, id + ' ended at tick ' + s.tick);
+    assert.ok(W.score(s) > s.saved * W.SAVE_POINTS, id + ' earned a time bonus');
+    assert.deepEqual(W.summary(W.replay(lv, s.log)), W.summary(s));
+  }
+});

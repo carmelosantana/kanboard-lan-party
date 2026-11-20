@@ -403,3 +403,145 @@ test('assignProblem explains why a job would not take, and is empty when it woul
   runOut(s);
   assert.equal(W.assignProblem(s, w.id, 'floater'), 'the level is over');
 });
+
+// ── Fix round 1 ──────────────────────────────────────────────────────────────
+
+// Kills: a bridger that planks over the lantern (or the door), making a level unwinnable.
+test('a bridger never lays a plank over the lantern or the door', () => {
+  const s = W.createState(level(['D.......', '####L...', '########']));
+  const w = firstWalker(s);
+  W.step(s); // landing
+  assert.equal(W.assign(s, w.id, 'bridger'), true);
+  runOut(s);
+  assert.equal(W.tileAt(s, 4, 1), 'L');
+  assert.equal(s.saved, 1);
+});
+
+// Kills: replay() ignoring the End entry (End is how the time bonus is banked).
+test('replay honours End: same log with End, same outcome and the same score', () => {
+  const lv = level(['D......L', '########'], { seconds: 60 });
+  const s = W.createState(lv);
+  for (let i = 0; i < 3; i++) W.step(s);
+  W.end(s);
+  const again = W.replay(lv, s.log);
+  assert.equal(again.tick, 3);
+  assert.deepEqual(W.summary(again), W.summary(s));
+});
+
+// Kills: a climber that keeps climbing into a ceiling instead of letting go and turning back.
+test('a climber under a ceiling lets go and turns around', () => {
+  const s = W.createState(level([
+    'D......L',
+    '........',
+    '...XXXXX',
+    '......XX',
+    '......XX',
+    '########'
+  ], { seconds: 20 }));
+  const w = firstWalker(s);
+  W.assign(s, w.id, 'climber');
+  let highest = w.y;
+  let turned = false;
+  for (let i = 0; i < 60 && !s.over; i++) {
+    W.step(s);
+    highest = Math.min(highest, w.y);
+    if (w.dir < 0 && w.x < 5) turned = true;
+  }
+  assert.ok(highest >= 3 || w.x === 0, 'never climbed into the ceiling row');
+  assert.equal(turned, true);
+});
+
+// Kills: a step-up that ignores head-room (walking up into a ceiling).
+test('a wickling does not step up a ledge when there is no head-room', () => {
+  const s = W.createState(level([
+    'D.......',
+    '........',
+    '...XXXXX',
+    '....#..L',
+    '########'
+  ], { seconds: 10 }));
+  const w = firstWalker(s);
+  let furthest = 0;
+  while (!s.over) {
+    W.step(s);
+    furthest = Math.max(furthest, w.x);
+  }
+  assert.equal(furthest, 3);
+  assert.equal(s.saved, 0);
+});
+
+// Kills: a blocker that hangs in the air once the ground under it is gone.
+test('a blocker whose ground is gone falls and stops blocking', () => {
+  const s = W.createState(level(['D......L', '########', '........', '########'], { seconds: 20 }));
+  const w = firstWalker(s);
+  W.step(s);
+  W.step(s); // landed and one step right
+  assert.equal(W.assign(s, w.id, 'blocker'), true);
+  const i = 1 * s.w + w.x;
+  s.tiles = s.tiles.slice(0, i) + '.' + s.tiles.slice(i + 1); // the floor under it crumbles
+  W.step(s); // lets go
+  W.step(s); // drops into the hole
+  W.step(s); // and lands below
+  assert.notEqual(w.state, 'block');
+  assert.equal(w.y, 2);
+});
+
+// Kills: floaters falling at full speed (they sink one row every other tick).
+test('a floater falls at half speed', () => {
+  const ticksToLand = (float) => {
+    const s = W.createState(level(['D.......', '........', '........', '........', '.......L', '########']));
+    const w = firstWalker(s);
+    if (float) W.assign(s, w.id, 'floater');
+    let n = 0;
+    while (w.state === 'fall' && w.y < 4) { W.step(s); n++; }
+    return n;
+  };
+  assert.equal(ticksToLand(false), 4);
+  assert.equal(ticksToLand(true), 8);
+});
+
+// Kills: the door releasing on the wrong phase (first wickling at tick 0, then one every `rate` ticks).
+test('the door releases the first wickling on the first step and then one every rate ticks', () => {
+  const s = W.createState(level(['D......L', '########'], { count: 3, rate: 5 }));
+  W.step(s);
+  assert.equal(s.released, 1);
+  for (let i = 0; i < 4; i++) W.step(s);
+  assert.equal(s.released, 1);
+  W.step(s);
+  assert.equal(s.released, 2);
+});
+
+// Kills: unlocking levels the player has not won by winning a challenge on a locked level.
+test('recordResult does not unlock past a challenge win on a level that was still locked', () => {
+  const order = ['1', '2', '3', '4', '5', '6'];
+  const save = W.readSave(null, 6);
+  W.recordResult(save, order, '5', 900, true);
+  assert.equal(save.unlocked, 1);
+  assert.equal(save.best['5'], 900);
+  W.recordResult(save, order, '1', 900, true);
+  assert.equal(save.unlocked, 2);
+});
+
+// Kills: counting End as a job in the score meta.
+test('jobsUsed counts handed-out jobs, not End', () => {
+  const s = W.createState(level(['D......', '.......', '......L', '#######']));
+  const w = firstWalker(s);
+  W.assign(s, w.id, 'climber');
+  W.assign(s, w.id, 'floater');
+  W.end(s);
+  assert.equal(s.log.length, 3);
+  assert.equal(W.jobsUsed(s), 2);
+});
+
+// Kills: a level that keeps running to the clock when no job can be given and nothing can change any more.
+test('a level ends by itself once no job can be given and the state repeats', () => {
+  // One wickling, no jobs: it paces between the wall and the left edge for ever.
+  const s = W.createState(level(['D..X..L', '#######'], { seconds: 60, jobs: {} }));
+  runOut(s);
+  assert.equal(s.over, true);
+  assert.ok(s.tick < 30, 'ended at tick ' + s.tick);
+  // A job still in stock keeps the level open (the player may yet use it).
+  const t = W.createState(level(['D..X..L', '#######'], { seconds: 10, jobs: { climber: 1 } }));
+  runOut(t);
+  assert.equal(t.tick, 10 * W.TICK_HZ);
+});
