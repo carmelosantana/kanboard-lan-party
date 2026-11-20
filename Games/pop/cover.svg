@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="400" height="600">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d3461"/>
+      <stop offset="1" stop-color="#14213d"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="600" fill="url(#sky)"/>
+  <circle cx="90" cy="470" r="46" fill="#ff6b6b"/>
+  <circle cx="72" cy="452" r="12" fill="#ffffff" fill-opacity="0.6"/>
+  <circle cx="300" cy="420" r="62" fill="#4ecdc4"/>
+  <circle cx="276" cy="396" r="15" fill="#ffffff" fill-opacity="0.6"/>
+  <circle cx="190" cy="330" r="34" fill="#ffb347"/>
+  <circle cx="177" cy="317" r="9" fill="#ffffff" fill-opacity="0.6"/>
+  <circle cx="320" cy="220" r="28" fill="#c77dff"/>
+  <circle cx="309" cy="209" r="7" fill="#ffffff" fill-opacity="0.6"/>
+  <circle cx="110" cy="250" r="40" fill="#5b8def"/>
+  <circle cx="95" cy="235" r="10" fill="#ffffff" fill-opacity="0.6"/>
+  <circle cx="230" cy="140" r="40" fill="none" stroke="#ffb347" stroke-width="6" stroke-dasharray="10 12"/>
+  <text x="200" y="560" text-anchor="middle" font-family="system-ui, sans-serif" font-size="72" font-weight="800" fill="#ffffff">POP</text>
+</svg>

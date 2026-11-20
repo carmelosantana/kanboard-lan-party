@@ -1,0 +1,5 @@
+{
+  "1": { "seconds": 30, "every": 450, "radius": [22, 38], "speed": [70, 140] },
+  "2": { "seconds": 30, "every": 350, "radius": [18, 32], "speed": [100, 190] },
+  "3": { "seconds": 30, "every": 260, "radius": [14, 26], "speed": [140, 260] }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pop</title>
+<link rel="stylesheet" href="pop.css">
+</head>
+<body>
+<main class="stage">
+  <canvas id="field" tabindex="0" aria-label="Pop playfield: click or tap bubbles, or move with the arrow keys and press Space"></canvas>
+
+  <section id="intro" class="card" hidden>
+    <h1>Pop</h1>
+    <p>Thirty seconds of rising bubbles. Pop as many as you can.</p>
+    <p class="hint">Click or tap a bubble, or steer with the arrow keys (or WASD) and press Space. Five pops in a row raise the multiplier; a miss or an escaped bubble resets it.</p>
+    <p id="intro-note" class="note"></p>
+    <button type="button" id="play">Play</button>
+  </section>
+
+  <section id="results" class="card" hidden>
+    <h1>Time!</h1>
+    <dl>
+      <dt>Score</dt><dd id="final-score">0</dd>
+      <dt>Bubbles</dt><dd id="final-pops">0</dd>
+      <dt>Longest streak</dt><dd id="final-streak">0</dd>
+      <dt>Your best streak</dt><dd id="best-streak">0</dd>
+    </dl>
+    <div class="actions">
+      <button type="button" id="submit">Submit</button>
+      <button type="button" id="share">Share</button>
+      <button type="button" id="again">Again</button>
+      <button type="button" id="exit">Exit</button>
+    </div>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite">Loading…</p>
+</main>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js"></script>
+<script src="pop.js"></script>
+</body>
+</html>
