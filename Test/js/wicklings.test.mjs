@@ -387,3 +387,19 @@ test('readSave keeps valid progress and drops junk; recordResult unlocks the nex
   W.recordResult(save, order, '1', 500, true);
   assert.deepEqual(save, { v: 1, unlocked: 2, best: { 1: 900 } });
 });
+
+// Kills: a refusal the player cannot understand (the UI shows this text when a job does not take).
+test('assignProblem explains why a job would not take, and is empty when it would', () => {
+  const s = W.createState(level(['D......', '.......', '......L', '#######'], { jobs: { digger: 1, climber: 1 } }));
+  const w = firstWalker(s);
+  assert.equal(W.assignProblem(s, w.id, 'digger'), 'needs firm ground');
+  assert.equal(W.assignProblem(s, w.id, 'blocker'), 'no blockers left');
+  assert.equal(W.assignProblem(s, w.id, 'climber'), '');
+  W.assign(s, w.id, 'climber');
+  assert.equal(W.assignProblem(s, w.id, 'climber'), 'no climbers left');
+  s.jobs.climber = 1;
+  assert.equal(W.assignProblem(s, w.id, 'climber'), 'already a climber');
+  assert.equal(W.assignProblem(s, 42, 'digger'), 'no such wickling');
+  runOut(s);
+  assert.equal(W.assignProblem(s, w.id, 'floater'), 'the level is over');
+});

@@ -337,16 +337,25 @@
     if (settled || s.tick >= limitTicks(s)) s.over = true;
   }
 
+  /** Why wickling `id` cannot take `job` right now, in a few words; '' when it can. */
+  function assignProblem(s, id, job) {
+    if (s.over) return 'the level is over';
+    if (JOBS.indexOf(job) === -1) return 'no such job';
+    const w = s.walkers[id];
+    if (!w) return 'no such wickling';
+    if (finished(w)) return w.state === 'saved' ? 'already home' : 'snuffed out';
+    if (!(s.jobs[job] > 0)) return 'no ' + job + 's left';
+    if (job === 'climber' || job === 'floater') return w[job] ? 'already a ' + job : '';
+    return w.state === 'walk' ? '' : w.state === 'fall' ? 'needs firm ground' : 'busy with another job';
+  }
+
   /** Hands a job to wickling `id`; false (and nothing changes) when it cannot take it. */
   function assign(s, id, job) {
-    if (s.over || JOBS.indexOf(job) === -1 || !(s.jobs[job] > 0)) return false;
+    if (assignProblem(s, id, job) !== '') return false;
     const w = s.walkers[id];
-    if (!w || finished(w)) return false;
     if (job === 'climber' || job === 'floater') {
-      if (w[job]) return false;
       w[job] = true;
     } else {
-      if (w.state !== 'walk') return false;
       w.work = 0;
       if (job === 'digger') w.state = 'dig';
       else if (job === 'blocker') w.state = 'block';
@@ -463,6 +472,7 @@
     solid: solid,
     step: step,
     assign: assign,
+    assignProblem: assignProblem,
     end: end,
     replay: replay,
     won: won,
