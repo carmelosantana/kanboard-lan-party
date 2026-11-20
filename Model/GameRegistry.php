@@ -82,6 +82,9 @@ class GameRegistry extends Base
                     $seen[$entry['slug']] = true;
                 }
             }
+            if ($entry['errors'] !== []) {
+                $this->logger->info('LanParty: skipping '.$entry['path'].': '.implode('; ', $entry['errors']));
+            }
             $this->scanned[] = $entry;
         }
 
@@ -106,6 +109,10 @@ class GameRegistry extends Base
         }
         if ($parts[count($parts) - 3] !== $plugin) {
             return $base + ['errors' => ['plugin does not match path']];
+        }
+        // base_url is plugins/<plugin>/Games/<slug>/: a slug folder starting with `data` trips nginx's /data rule.
+        if (self::startsWithData($folder)) {
+            return $base + ['errors' => ['forbidden path: '.$folder]];
         }
         if (! is_dir($path)) {
             return $base + ['errors' => ['game folder missing']];
@@ -135,7 +142,10 @@ class GameRegistry extends Base
         ]);
     }
 
-    /** Kanboard's nginx 404s any URI containing /data, and .php would execute: reject both. */
+    /**
+     * Kanboard's nginx 404s any URI containing /data, and .php would execute: reject both. Symlinks are
+     * rejected outright so nothing can hide behind one.
+     */
     private function folderErrors(string $path): array
     {
         $errors = [];
@@ -144,20 +154,33 @@ class GameRegistry extends Base
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
-        foreach ($files as $file) {
-            $relative = substr($file->getPathname(), strlen($path) + 1);
-            foreach (explode('/', $relative) as $segment) {
-                if (stripos($segment, 'data') === 0) {
+        try {
+            foreach ($files as $file) {
+                $relative = substr($file->getPathname(), strlen($path) + 1);
+                if ($file->isLink()) {
                     $errors[] = 'forbidden path: '.$relative;
-                    continue 2;
+                    continue;
+                }
+                foreach (explode('/', $relative) as $segment) {
+                    if (self::startsWithData($segment)) {
+                        $errors[] = 'forbidden path: '.$relative;
+                        continue 2;
+                    }
+                }
+                if ($file->isFile() && in_array(strtolower($file->getExtension()), self::FORBIDDEN_EXTENSIONS, true)) {
+                    $errors[] = 'forbidden file: '.$relative;
                 }
             }
-            if ($file->isFile() && in_array(strtolower($file->getExtension()), self::FORBIDDEN_EXTENSIONS, true)) {
-                $errors[] = 'forbidden file: '.$relative;
-            }
+        } catch (\UnexpectedValueException $e) {
+            $errors[] = 'folder unreadable';
         }
 
         sort($errors);
         return $errors;
+    }
+
+    private static function startsWithData(string $segment): bool
+    {
+        return stripos($segment, 'data') === 0;
     }
 }

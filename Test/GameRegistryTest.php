@@ -5,6 +5,16 @@ use KanboardTests\units\Base;
 use Kanboard\Plugin\LanParty\Model\GameRegistry;
 use Kanboard\Plugin\LanParty\Plugin;
 
+class GameRegistryRecordingLogger extends \Psr\Log\AbstractLogger
+{
+    public array $records = [];
+
+    public function log($level, $message, array $context = []): void
+    {
+        $this->records[] = [$level, (string) $message];
+    }
+}
+
 // Each test names the GameRegistry mutation it kills.
 class GameRegistryTest extends Base
 {
@@ -63,7 +73,7 @@ class GameRegistryTest extends Base
             RecursiveIteratorIterator::CHILD_FIRST
         );
         foreach ($it as $file) {
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+            ($file->isDir() && ! $file->isLink()) ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($dir);
     }
@@ -157,6 +167,66 @@ class GameRegistryTest extends Base
         @mkdir(dirname($entry['path'].'/'.$file), 0777, true);
         file_put_contents($entry['path'].'/'.$file, 'x');
         $this->assertRejected($entry, 'forbidden file: '.$file);
+    }
+
+    public function testFolderStartingWithDataIsRejected(): void
+    {
+        // Kills: checking only paths inside the folder (base_url plugins/X/Games/datacenter/ hits nginx's /data rule).
+        $entry = $this->tmpGame('datacenter');
+        file_put_contents(
+            $entry['path'].'/game.json',
+            str_replace('"saltroad"', '"datacenter"', file_get_contents($entry['path'].'/game.json'))
+        );
+        $this->assertRejected($entry, 'forbidden path: datacenter');
+    }
+
+    public function testSymlinkedFileIsRejected(): void
+    {
+        // Kills: following or ignoring symlinks, which could hide a .php or data path behind an innocent name.
+        $entry = $this->tmpGame();
+        symlink($entry['path'].'/index.html', $entry['path'].'/alias.html');
+        $this->assertRejected($entry, 'forbidden path: alias.html');
+    }
+
+    public function testSymlinkedDirectoryIsRejected(): void
+    {
+        // Kills: treating a symlinked directory as an ordinary subfolder.
+        $entry = $this->tmpGame();
+        $target = dirname($entry['path'], 3).'/outside';
+        mkdir($target);
+        symlink($target, $entry['path'].'/levels');
+        $this->assertRejected($entry, 'forbidden path: levels');
+    }
+
+    public function testUnreadableSubfolderIsReportedNotThrown(): void
+    {
+        // Kills: letting RecursiveDirectoryIterator's UnexpectedValueException escape and 500 the launcher.
+        $entry = $this->tmpGame();
+        mkdir($entry['path'].'/locked/inner', 0777, true);
+        chmod($entry['path'].'/locked', 0000);
+        try {
+            if (is_readable($entry['path'].'/locked')) {
+                $this->markTestSkipped('running as a user that can read a 0000 directory');
+            }
+            $this->assertRejected($entry, 'folder unreadable');
+        } finally {
+            chmod($entry['path'].'/locked', 0777);
+        }
+    }
+
+    public function testRejectedAndDuplicateEntriesAreLogged(): void
+    {
+        // Kills: skipping invalid or duplicate entries without logging the reason.
+        $logger = new GameRegistryRecordingLogger();
+        $this->container['logger'] = $logger;
+        $dupe = $this->fixture('dupe', 'saltroad');
+        $php = $this->fixture('phpfile', 'shell');
+        $this->registry([$this->fixture('good', 'saltroad'), $dupe, $php])->all();
+
+        $messages = array_column($logger->records, 1);
+        $this->assertContains('LanParty: skipping '.$dupe['path'].': duplicate slug', $messages);
+        $this->assertContains('LanParty: skipping '.$php['path'].': forbidden file: evil.php', $messages);
+        $this->assertCount(2, array_filter($messages, fn ($m) => str_starts_with($m, 'LanParty: skipping')));
     }
 
     public function testMissingManifestIsRejected(): void
