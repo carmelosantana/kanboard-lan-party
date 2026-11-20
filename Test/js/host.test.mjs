@@ -322,6 +322,19 @@ test('server errors map to SDK codes: JSON body code, else 403 forbidden, else u
   assert.equal(down.msg.error.code, 'unavailable');
 });
 
+// Kills: reporting an expired session (fetch followed the redirect to the login page) as a retryable outage.
+test('a redirected JSON endpoint response rejects forbidden', async () => {
+  const login = res(200, '<html>login</html>', { json: false, redirected: true });
+  const asJson = res(200, { rows: [] }, { redirected: true });
+  for (const [op, args] of [['submitScore', { score: 1 }], ['load', {}], ['save', { data: 1 }], ['leaderboard', {}]]) {
+    for (const response of [login, asJson]) {
+      const r = await setup({ respond: () => response }).send(op, args);
+      assert.equal(r.msg.ok, false, op);
+      assert.equal(r.msg.error.code, 'forbidden', op);
+    }
+  }
+});
+
 // Kills: a leaderboard that ignores period/limit, mangles the query string, or returns the envelope.
 test('leaderboard GETs the scores endpoint with period and limit and resolves the rows', async () => {
   const rows = [{ rank: 1, user_id: 2, name: 'Amy', score: 640, level: null, date: 1763500000 }];

@@ -118,9 +118,11 @@
     }
 
     // Every JSON endpoint: server {error: {code, message}} passes through; a non-JSON error (Kanboard's HTML
-    // 403 page for a missing CSRF token, a proxy 5xx) maps by status.
+    // 403 page for a missing CSRF token, a proxy 5xx) maps by status. A redirect is an expired session bounced
+    // to the login page: forbidden.
     function json(url, init) {
       return request(url, init).then(function (res) {
+        if (res.redirected) throw fail('forbidden');
         return res.text().then(function (text) {
           var body;
           try { body = JSON.parse(text); } catch (e) { body = undefined; }
