@@ -77,6 +77,19 @@ class SampleGameTest extends Base
         }
     }
 
+    public function testGamesFolderIsServedSandboxedByApache(): void
+    {
+        // Kills: a game URL opened top-level running scripts with the Kanboard origin (and session) on Apache.
+        // It sits at Games/, outside every game folder, so the registry's dot-file rule never sees it.
+        $this->assertSame(
+            "<IfModule mod_headers.c>\n    Header set Content-Security-Policy \"sandbox allow-scripts\"\n</IfModule>\n",
+            @file_get_contents(self::GAMES.'/.htaccess')
+        );
+        $this->container['lanpartyGames'] = [];
+        (new Plugin($this->container))->initialize();
+        $this->assertSame(['pop'], array_keys($this->container['gameRegistry']->all()));
+    }
+
     public function testNoShippedGameFileBreaksThePathRules(): void
     {
         $games = $this->gameFiles();
