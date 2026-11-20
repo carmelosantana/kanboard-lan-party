@@ -1,6 +1,6 @@
 # LAN Party
 
-A game launcher with leaderboards and rooms for your team, built into Kanboard. Browse rows of
+A game launcher with leaderboards and challenges for your team, built into Kanboard. Browse rows of
 game cards with cover art, play in the browser, and compete on per-game leaderboards.
 Multiplayer rooms arrive in a later release.
 
@@ -39,16 +39,37 @@ frame is cross-site, so a proxy cookie set `SameSite=Lax` or `Strict` is not sen
 
 ## Games
 
-LAN Party ships one sample game, `Pop` (`Games/pop`). Other plugins can register their own games.
-Each game is a folder of static files that runs in a sandboxed iframe and talks to the launcher
-only through `lanparty-sdk.js`. The rules for game authors are in
-[docs/game-contract.md](https://github.com/carmelosantana/kanboard-lan-party/blob/main/docs/game-contract.md).
+Four original games ship in `Games/`:
+
+| Game | What it is |
+|---|---|
+| **Pop** | 30 seconds of rising bubbles; chain pops for a multiplier. |
+| **Saltroad** | Lead a salt caravan to the coast: pace, rations, a seeded event deck and trading posts. Two routes. |
+| **Gusher** | Lay pipe before the well blows: ten hand-made levels plus seeded endless boards. |
+| **Wicklings** | Hand out five jobs to lead candle-folk to the lantern across twelve hand-made levels. |
+
+Every game keeps a best-per-player leaderboard (all time and this week), saves progress per player, and can
+share a challenge link that reopens the same level and seed.
+
+### Adding a game
+
+A game is a folder of static files (`game.json`, an entry page, cover art) that runs in a sandboxed iframe and
+talks to the launcher only through `lanparty-sdk.js`. The rules are in
+[docs/game-contract.md](https://github.com/carmelosantana/kanboard-lan-party/blob/main/docs/game-contract.md);
+`Games/pop` is the smallest complete example.
+
+- **Ship it in your own plugin (recommended).** Put the folder at `<YourPlugin>/Games/<slug>/` and append it to
+  `$this->container['lanpartyGames']` in your plugin's `initialize()` (the contract shows the snippet). Your
+  game survives LAN Party updates.
+- **Contribute it to LAN Party.** Add `Games/<slug>/` here with tests, as the four shipped games do.
+
+The registry checks each manifest and folder; a game that breaks a rule is skipped and logged, never shown.
 
 ## Development
 
 ```sh
 ./testing/run-plugin-tests.sh LanParty      # PHPUnit, from the plugin harness root
-node --test LanParty/Test/js/*.test.mjs     # host bridge, SDK and Pop logic
+node --test LanParty/Test/js/*.test.mjs     # host bridge, SDK and game logic
 ```
 
 ## Licences
