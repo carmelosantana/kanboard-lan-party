@@ -1,0 +1,15 @@
+{
+  "slug": "saltroad",
+  "title": "Saltroad",
+  "tagline": "Lead a salt caravan from the inland pans to the sea.",
+  "version": "0.1.0",
+  "kind": "original",
+  "licence": "MIT",
+  "content_licence": "CC-BY-4.0",
+  "entry": "index.html",
+  "art": { "cover": "cover.svg", "hero": "hero.svg" },
+  "players": { "min": 1, "max": 1 },
+  "modes": ["solo", "async"],
+  "scoring": { "order": "high", "unit": "bars", "max": 10000 },
+  "files": []
+}

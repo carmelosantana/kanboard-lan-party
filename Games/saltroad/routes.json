@@ -1,0 +1,48 @@
+{
+  "1": {
+    "name": "The Short Road",
+    "deadline": 28,
+    "waypoints": [
+      { "name": "Whitecrust Pans", "kind": "pans", "miles": 0, "terrain": "flat", "x": 4, "y": 62 },
+      { "name": "Rattle Flats", "kind": "plain", "miles": 14, "terrain": "flat", "x": 14, "y": 48 },
+      { "name": "Kettle Well", "kind": "well", "miles": 16, "terrain": "flat", "x": 25, "y": 58 },
+      { "name": "The Long Dunes", "kind": "dunes", "miles": 18, "terrain": "dunes", "x": 37, "y": 38 },
+      { "name": "Tinker's Post", "kind": "post", "miles": 14, "terrain": "flat", "x": 48, "y": 52,
+        "prices": { "water": 5, "food": 6, "camel": 9, "coin": 2 } },
+      { "name": "Split Rock", "kind": "plain", "miles": 12, "terrain": "rocky", "x": 58, "y": 34 },
+      { "name": "Needle Pass", "kind": "canyon", "miles": 14, "terrain": "rocky", "x": 68, "y": 46 },
+      { "name": "Thornbush Well", "kind": "well", "miles": 16, "terrain": "flat", "x": 78, "y": 62 },
+      { "name": "Mudbank Ford", "kind": "ford", "miles": 12, "terrain": "flat", "x": 87, "y": 44 },
+      { "name": "Gull Market", "kind": "market", "miles": 14, "terrain": "flat", "x": 96, "y": 30 }
+    ]
+  },
+  "2": {
+    "name": "The Long Road",
+    "deadline": 56,
+    "waypoints": [
+      { "name": "Whitecrust Pans", "kind": "pans", "miles": 0, "terrain": "flat", "x": 3, "y": 70 },
+      { "name": "Rattle Flats", "kind": "plain", "miles": 14, "terrain": "flat", "x": 8, "y": 54 },
+      { "name": "Kettle Well", "kind": "well", "miles": 16, "terrain": "flat", "x": 14, "y": 66 },
+      { "name": "Ochre Dunes", "kind": "dunes", "miles": 20, "terrain": "dunes", "x": 19, "y": 46 },
+      { "name": "Stone Orchard", "kind": "plain", "miles": 14, "terrain": "rocky", "x": 24, "y": 30 },
+      { "name": "Tinker's Post", "kind": "post", "miles": 12, "terrain": "flat", "x": 29, "y": 44,
+        "prices": { "water": 5, "food": 6, "camel": 9, "coin": 2 } },
+      { "name": "The Long Dunes", "kind": "dunes", "miles": 22, "terrain": "dunes", "x": 34, "y": 62 },
+      { "name": "Sister Well", "kind": "well", "miles": 16, "terrain": "dunes", "x": 39, "y": 76 },
+      { "name": "Crow Steps", "kind": "plain", "miles": 14, "terrain": "rocky", "x": 45, "y": 60 },
+      { "name": "Needle Pass", "kind": "canyon", "miles": 16, "terrain": "rocky", "x": 50, "y": 42 },
+      { "name": "Hollow Post", "kind": "post", "miles": 14, "terrain": "flat", "x": 55, "y": 28,
+        "prices": { "water": 4, "food": 6, "camel": 10, "coin": 2 } },
+      { "name": "Glass Flats", "kind": "plain", "miles": 18, "terrain": "flat", "x": 61, "y": 40 },
+      { "name": "Thornbush Well", "kind": "well", "miles": 16, "terrain": "flat", "x": 66, "y": 58 },
+      { "name": "Copper Dunes", "kind": "dunes", "miles": 20, "terrain": "dunes", "x": 71, "y": 72 },
+      { "name": "Weaver's Post", "kind": "post", "miles": 16, "terrain": "flat", "x": 76, "y": 56,
+        "prices": { "water": 5, "food": 6, "camel": 8, "coin": 3 } },
+      { "name": "Lantern Gorge", "kind": "canyon", "miles": 14, "terrain": "rocky", "x": 81, "y": 38 },
+      { "name": "Mudbank Ford", "kind": "ford", "miles": 14, "terrain": "flat", "x": 85, "y": 52 },
+      { "name": "Fig Well", "kind": "well", "miles": 14, "terrain": "flat", "x": 89, "y": 66 },
+      { "name": "Saltwind Ford", "kind": "ford", "miles": 12, "terrain": "flat", "x": 93, "y": 48 },
+      { "name": "Gull Market", "kind": "market", "miles": 16, "terrain": "flat", "x": 97, "y": 30 }
+    ]
+  }
+}
