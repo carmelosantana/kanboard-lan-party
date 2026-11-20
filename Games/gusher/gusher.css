@@ -19,7 +19,8 @@ html, body {
 }
 
 #field {
-  width: min(100%, calc((100vh - 28px) * 9 / 8)); /* 9:8 contained in the frame, above the status line */
+  /* 9:8, contained in the frame above the 28px status line, leaving 5px all round for the focus ring */
+  width: min(100% - 10px, calc((100vh - 28px - 10px) * 9 / 8));
   height: auto;
   aspect-ratio: 9 / 8;
   background: #27313a;
