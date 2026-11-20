@@ -95,7 +95,7 @@
       ".#######..",
       "D........."
     ],
-    "countdown": 16000, "fillMs": 2000, "target": 500
+    "countdown": 16000, "fillMs": 2000, "target": 380
   },
   "9": {
     "name": "Four Corners",
@@ -123,6 +123,6 @@
       ".#...D...#",
       ".........."
     ],
-    "countdown": 12000, "fillMs": 1700, "target": 700
+    "countdown": 12000, "fillMs": 1700, "target": 600
   }
 }

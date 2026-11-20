@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const G = require('../../Games/gusher/gusher-logic.js');
 const LEVELS = JSON.parse(readFileSync(new URL('../../Games/gusher/levels.json', import.meta.url), 'utf8'));
+const RUNS = JSON.parse(readFileSync(new URL('../fixtures/gusher-quota-runs.json', import.meta.url), 'utf8'));
 const MANIFEST = JSON.parse(readFileSync(new URL('../../Games/gusher/game.json', import.meta.url), 'utf8'));
 
 const { N, E, S, W } = G.DIRS;
@@ -343,19 +344,108 @@ test('resultButtons and submitText follow the pop rules', () => {
 
 // Kills: a save that grows without bound or keeps junk from an older or tampered save.
 test('mergeBest keeps the best per known level and drops junk', () => {
-  const saved = { best: { 1: 50, 2: 'x', zz: 70, endless: 400, '3': -4 } };
-  const best = G.readBest(saved);
-  assert.deepEqual(best, { 1: 50, endless: 400 });
-  assert.deepEqual(G.readBest(null), {});
-  assert.deepEqual(G.readBest({ best: [1, 2] }), {});
-  const r = G.mergeBest(best, '1', 40);
-  assert.deepEqual(r, { best: { 1: 50, endless: 400 }, improved: false });
-  const r2 = G.mergeBest(best, '2', 80);
-  assert.deepEqual(r2, { best: { 1: 50, 2: 80, endless: 400 }, improved: true });
+  const keys = G.levelKeys(LEVELS);
+  const saved = { best: { 1: 50, 2: 'x', zz: 70, endless: 400, '3': -4, '4': G.MAX_SCORE + 1, '5': G.MAX_SCORE } };
+  const best = G.readBest(saved, keys);
+  assert.deepEqual(best, { 1: 50, 5: G.MAX_SCORE, endless: 400 });
+  assert.deepEqual(G.readBest(null, keys), {});
+  assert.deepEqual(G.readBest({ best: [1, 2] }, keys), {});
+  const r = G.mergeBest(best, '1', 40, keys);
+  assert.deepEqual(r, { best: { 1: 50, 5: G.MAX_SCORE, endless: 400 }, improved: false });
+  const r2 = G.mergeBest(best, '2', 80, keys);
+  assert.deepEqual(r2, { best: { 1: 50, 2: 80, 5: G.MAX_SCORE, endless: 400 }, improved: true });
+  assert.deepEqual(G.mergeBest(best, 'zz', 80, keys), { best: best, improved: false });
+});
+
+// Kills: a second, hard-coded list of levels (a level added to levels.json must keep its best).
+test('levelKeys come from the level table plus endless', () => {
+  assert.deepEqual(G.levelKeys(LEVELS), Object.keys(LEVELS).concat(['endless']));
+  const more = Object.assign({}, LEVELS, { 11: LEVELS['1'] });
+  const keys = G.levelKeys(more);
+  assert.deepEqual(G.readBest({ best: { 11: 30 } }, keys), { 11: 30 });
+  assert.equal(G.mergeBest({}, '11', 30, keys).improved, true);
+});
+
+// Kills: a stale challenge link claiming the same board after its level is gone.
+test('challengeStart keeps a known challenge and drops one whose level is gone', () => {
+  assert.deepEqual(G.challengeStart(LEVELS, null), { level: '1', seed: null, note: '' });
+  const ok = G.challengeStart(LEVELS, { level: '4', seed: 'abc' });
+  assert.deepEqual([ok.level, ok.seed], ['4', 'abc']);
+  assert.match(ok.note, /same board, same pieces/i);
+  const endless = G.challengeStart(LEVELS, { level: 'endless', seed: 'abc' });
+  assert.deepEqual([endless.level, endless.seed], ['endless', 'abc']);
+  const gone = G.challengeStart(LEVELS, { level: '42', seed: 'abc' });
+  assert.deepEqual([gone.level, gone.seed], ['1', null]);
+  assert.match(gone.note, /42/);
+  assert.doesNotMatch(gone.note, /same board/i);
+});
+
+// Kills: a depot that pays every branch that reaches it.
+test('a depot pays once even when two branches reach it', () => {
+  // The tank splits east and west; both branches bend down and meet the one depot from either side.
+  const s = game(['.v.', '...', '.D.'], [
+    { type: 'tank', rot: 2 }, { type: 'bend', rot: 1 }, { type: 'bend', rot: 2 }, { type: 'bend', rot: 0 }, { type: 'bend', rot: 3 }
+  ]);
+  assert.ok(G.place(s, 1, 1).ok); // tank N,E,W
+  assert.ok(G.place(s, 0, 1).ok); // E,S
+  assert.ok(G.place(s, 2, 1).ok); // S,W
+  assert.ok(G.place(s, 0, 2).ok); // N,E -> into the depot from the west
+  assert.ok(G.place(s, 2, 2).ok); // N,W -> into the depot from the east
+  G.advance(s, 99999);
+  assert.equal(s.sealed, true);
+  assert.equal(s.score.depots, 1);
+  assert.equal(s.score.barrels, 5 * G.POINTS.cell + G.POINTS.tank + G.POINTS.depot + G.POINTS.seal);
+});
+
+// Kills: a spill that only stops its own branch (the ruling: any open end ends the round at once).
+test('a spill on one branch ends the round while the other is still flowing', () => {
+  // The tank opens east onto bare deck and west into a long run of pipe.
+  const s = game(['..v..', '.....'], [{ type: 'tank', rot: 2 }, H, H]);
+  assert.ok(G.place(s, 2, 1).ok);
+  assert.ok(G.place(s, 1, 1).ok);
+  G.advance(s, 99999);
+  assert.deepEqual(s.spill, { x: 2, y: 1, dir: E });
+  assert.equal(s.clock, 1000 + 100 + 400);
+  assert.equal(s.heads.length, 0);
+  assert.equal(s.score.cells, 1); // only the tank: the west pipe never filled
 });
 
 // Kills: a cell name off by one (the status line reads grid positions aloud).
 test('cellName gives a column letter and a row number', () => {
   assert.equal(G.cellName(0, 0), 'A1');
   assert.equal(G.cellName(9, 7), 'J8');
+});
+
+// ── Quotas ──────────────────────────────────────────────────────────────────
+
+// Kills: a quota no run can reach. Each fixture run is a recorded placement sequence (one piece every
+// pace ms, from the level's seeded queue) that banks at least the level's quota through the real simulation.
+test('every hand-made level has a recorded run that reaches its quota', () => {
+  assert.deepEqual(Object.keys(RUNS.levels), Object.keys(LEVELS));
+  for (const [key, run] of Object.entries(RUNS.levels)) {
+    const s = G.newGame(G.levelConfig(LEVELS, key, run.seed), run.seed);
+    for (const [x, y] of run.moves) {
+      assert.ok(G.place(s, x, y).ok, 'level ' + key + ' move ' + x + ',' + y);
+      G.advance(s, s.clock + RUNS.pace);
+    }
+    G.advance(s, 1e9);
+    assert.equal(s.score.barrels, run.banked, 'level ' + key + ' replays to the recorded score');
+    assert.ok(s.score.barrels >= LEVELS[key].target, 'level ' + key + ': ' + s.score.barrels + ' < ' + LEVELS[key].target);
+  }
+  assert.ok(RUNS.pace >= 800, 'a human pace, not a burst at clock 0');
+});
+
+// Kills: an endless quota out of reach. The endless quota is flat (every endless board is 10x8 with two depots);
+// a recorded run on a fixed seed banks it.
+test('a recorded endless run reaches the endless quota', () => {
+  const run = RUNS.endless;
+  const cfg = G.levelConfig(LEVELS, 'endless', run.seed);
+  const s = G.newGame(cfg, run.seed);
+  for (const [x, y] of run.moves) {
+    assert.ok(G.place(s, x, y).ok);
+    G.advance(s, s.clock + RUNS.pace);
+  }
+  G.advance(s, 1e9);
+  assert.equal(s.score.barrels, run.banked);
+  assert.ok(s.score.barrels >= cfg.target);
 });

@@ -358,27 +358,42 @@
     return r.rank > 0 ? 'Rank #' + r.rank + ' · your best ' + r.best : 'Your best ' + r.best;
   }
 
-  function isLevelKey(k) {
-    return /^([1-9]|10)$/.test(k) || k === LEVEL_ENDLESS;
+  /** Every playable level key: the hand-made ones from levels.json, then endless. */
+  function levelKeys(levels) {
+    return Object.keys(levels).concat([LEVEL_ENDLESS]);
   }
 
   /** The best-per-level map from a save, keeping only known levels with a valid score. */
-  function readBest(saved) {
+  function readBest(saved, keys) {
     const out = {};
     const best = saved && saved.best;
     if (!best || typeof best !== 'object' || Array.isArray(best)) return out;
     Object.keys(best).forEach(function (k) {
       const v = best[k];
-      if (isLevelKey(k) && Number.isInteger(v) && v >= 0 && v <= MAX_SCORE) out[k] = v;
+      if (keys.indexOf(k) !== -1 && Number.isInteger(v) && v >= 0 && v <= MAX_SCORE) out[k] = v;
     });
     return out;
   }
 
-  function mergeBest(best, level, score) {
+  function mergeBest(best, level, score, keys) {
+    const improved = keys.indexOf(level) !== -1 && !(best[level] >= score);
+    if (!improved) return { best: best, improved: false };
     const next = Object.assign({}, best);
-    const improved = isLevelKey(level) && !(next[level] >= score);
-    if (improved) next[level] = score;
-    return { best: next, improved: improved };
+    next[level] = score;
+    return { best: next, improved: true };
+  }
+
+  /**
+   * The first run of a session: the challenge's level and seed when the level still exists, else level "1"
+   * with no seed (a fresh one is drawn) and a note that says the challenged level is gone.
+   */
+  function challengeStart(levels, challenge) {
+    if (!challenge) return { level: '1', seed: null, note: '' };
+    const label = challenge.level === LEVEL_ENDLESS ? 'Endless' : 'Level ' + challenge.level;
+    if (levelKeys(levels).indexOf(challenge.level) !== -1) {
+      return { level: challenge.level, seed: challenge.seed, note: 'Challenge: ' + label + ', seed ' + challenge.seed + '. Same board, same pieces.' };
+    }
+    return { level: '1', seed: null, note: 'This challenge was for ' + label + ', which is no longer here. Starting at Level 1 with new pieces.' };
   }
 
   /** A1 is the top-left cell. */
@@ -416,8 +431,10 @@
     place: place,
     resultButtons: resultButtons,
     submitText: submitText,
+    levelKeys: levelKeys,
     readBest: readBest,
     mergeBest: mergeBest,
+    challengeStart: challengeStart,
     cellName: cellName
   };
 
