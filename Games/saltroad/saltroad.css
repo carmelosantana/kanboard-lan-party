@@ -19,11 +19,14 @@ html, body {
   font: 15px/1.4 Georgia, 'Times New Roman', serif;
 }
 
+/* The status bar is fixed to the bottom: focused controls scroll clear of it (two lines tall on a phone). */
+html { scroll-padding-bottom: 64px; }
+
 .app {
   position: relative;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 8px 12px 40px;
+  padding: 8px 12px 72px; /* room to scroll the last control above the status bar */
 }
 
 .bar {
