@@ -48,6 +48,8 @@ Four original games ship in `Games/`:
 | **Gusher** | Lay pipe before the well blows: ten hand-made levels plus seeded endless boards. |
 | **Wicklings** | Hand out five jobs to lead candle-folk to the lantern across twelve hand-made levels. |
 
+![The LAN Party launcher](docs/screenshots/launcher.png)
+
 Every game keeps a best-per-player leaderboard (all time and this week), saves progress per player, and can
 share a challenge link that reopens the same level and seed.
 
