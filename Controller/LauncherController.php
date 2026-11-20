@@ -28,7 +28,9 @@ class LauncherController extends BaseController
             t('Engine games') => array_filter($games, fn ($g) => $g['kind'] === 'engine'),
         ]);
 
-        $hero = $games[$scores->mostPlayedSince(time() - self::WEEK) ?? ''] ?? reset($originals) ?: reset($games) ?: null;
+        // The most-played listed game this week; a disabled or unregistered slug passes to the next one.
+        $played = array_values(array_intersect($scores->mostPlayedSlugsSince(time() - self::WEEK), array_keys($games)));
+        $hero = $games[$played[0] ?? ''] ?? reset($originals) ?: reset($games) ?: null;
 
         $this->render('LanParty:launcher/index', [
             'title' => t('LAN Party'),

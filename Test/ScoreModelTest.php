@@ -235,7 +235,8 @@ class ScoreModelTest extends Base
         $this->assertNull($m->best('nope', 2, 'high'));
     }
 
-    // Kills: playedSlugs leaking other users or repeating slugs; mostPlayedSince ignoring the window.
+    // Kills: playedSlugs leaking other users or repeating slugs; mostPlayedSlugsSince ignoring the window,
+    // the play-count order or the slug tie-break.
     public function testPlayedSlugsAndMostPlayedSince(): void
     {
         $this->row(2, 1, self::NOW, 'pop');
@@ -248,9 +249,9 @@ class ScoreModelTest extends Base
         $slugs = $m->playedSlugs(2);
         sort($slugs);
         $this->assertSame(['gusher', 'pop'], $slugs);
-        $this->assertSame('pop', $m->mostPlayedSince(self::NOW - 7 * 86400));
-        $this->assertSame('saltroad', $m->mostPlayedSince(0));
-        $this->assertNull($m->mostPlayedSince(self::NOW + 1));
+        $this->assertSame(['pop', 'gusher', 'saltroad'], $m->mostPlayedSlugsSince(self::NOW - 7 * 86400));
+        $this->assertSame(['saltroad', 'pop', 'gusher'], $m->mostPlayedSlugsSince(0));
+        $this->assertSame([], $m->mostPlayedSlugsSince(self::NOW + 1));
     }
 
     // Kills: a second leaderboard query that returns one row per matching score row instead of one per user,
@@ -292,14 +293,14 @@ class ScoreModelTest extends Base
         $this->assertSame(2, $low->submit($this->game('low', 1000, 'golf'), 2, 9, null, null, null, self::NOW + 5)['rank']);
     }
 
-    // Kills: agents steering the launcher hero through mostPlayedSince.
+    // Kills: agents steering the launcher hero through mostPlayedSlugsSince.
     public function testMostPlayedSinceIgnoresAgents(): void
     {
         for ($i = 0; $i < 5; $i++) {
             $this->row(3, 1, self::NOW, 'botgame');
         }
         $this->row(2, 1, self::NOW, 'pop');
-        $this->assertSame('pop', $this->model(LanPartyStubAgentTable::class)->mostPlayedSince(self::NOW - 10));
-        $this->assertSame('botgame', $this->model()->mostPlayedSince(self::NOW - 10));
+        $this->assertSame(['pop'], $this->model(LanPartyStubAgentTable::class)->mostPlayedSlugsSince(self::NOW - 10));
+        $this->assertSame(['botgame', 'pop'], $this->model()->mostPlayedSlugsSince(self::NOW - 10));
     }
 }

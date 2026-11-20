@@ -102,7 +102,23 @@ class LauncherControllerTest extends Base
         $this->assertStringContainsString('640', $html);
     }
 
-    // Kills: a hero that ignores mostPlayedSince() and always shows the first original.
+    // Kills: a hero that falls back to the first original when the most-played game is disabled or no longer
+    // registered, instead of taking the next most-played game that is listed.
+    public function testHeroSkipsMostPlayedGamesThatAreNotListed(): void
+    {
+        $this->withEngine();
+        $db = $this->container['db'];
+        foreach (['gone' => 4, 'arcade' => 3, 'doomish' => 2, 'saltroad' => 1] as $slug => $plays) {
+            for ($i = 0; $i < $plays; $i++) {
+                $db->table(ScoreModel::TABLE)->insert(['game_slug' => $slug, 'user_id' => 2, 'score' => 1, 'created_at' => time()]);
+            }
+        }
+        $this->assertMatchesRegularExpression('/class="lp-hero".*?<h1[^>]*>Arcade</s', $this->render('index'));
+        $this->container['gameRegistry']->setEnabled('arcade', false);
+        $this->assertMatchesRegularExpression('/class="lp-hero".*?<h1[^>]*>Doomish</s', $this->render('index'));
+    }
+
+    // Kills: a hero that ignores mostPlayedSlugsSince() and always shows the first original.
     public function testHeroIsMostPlayedThisWeek(): void
     {
         $this->games(array_reverse($this->container['lanpartyGames']));

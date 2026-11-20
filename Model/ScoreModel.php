@@ -140,8 +140,12 @@ class ScoreModel extends Base
         return array_values(array_unique($this->db->table(self::TABLE)->eq('user_id', $userId)->findAllByColumn('game_slug')));
     }
 
-    // Agents are left out so they cannot steer the launcher hero.
-    public function mostPlayedSince(int $since): ?string
+    /**
+     * Slugs with plays since $since, most played first (ties by slug), so the launcher can skip ones that are no
+     * longer listed. Agents are left out so they cannot steer the launcher hero.
+     * @return list<string>
+     */
+    public function mostPlayedSlugsSince(int $since): array
     {
         $players = $this->db->table(self::TABLE)->distinct('user_id')->gte('created_at', $since)->findAllByColumn('user_id');
         $agents = $this->agentFilter->agentIds(array_map('intval', $players));
@@ -151,11 +155,8 @@ class ScoreModel extends Base
             ->notIn('user_id', $agents)
             ->groupBy('game_slug')
             ->findAll();
-        if ($counts === []) {
-            return null;
-        }
         usort($counts, fn ($a, $b) => [(int) $b['plays'], $a['game_slug']] <=> [(int) $a['plays'], $b['game_slug']]);
-        return $counts[0]['game_slug'];
+        return array_column($counts, 'game_slug');
     }
 
     /**
