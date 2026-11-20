@@ -157,7 +157,42 @@ class GameRegistryTest extends Base
             'sqlite' => ['scores.sqlite'],
             // Kills: a case-sensitive extension check.
             'upper php' => ['art/x.PHP'],
+            // Kills: a list without the other extensions PHP handlers commonly execute or serve as source.
+            'php7' => ['lib/x.php7'],
+            'phtml' => ['x.phtml'],
+            'phar' => ['x.Phar'],
+            'phps' => ['x.phps'],
         ];
+    }
+
+    public static function dotFiles(): array
+    {
+        return [
+            // Kills: letting a game ship its own .htaccess (it could switch PHP on, or the sandbox header off).
+            'htaccess' => ['.htaccess', 'forbidden path: .htaccess'],
+            // Kills: checking dot-files only at the top of the folder.
+            'nested' => ['art/.hidden', 'forbidden path: art/.hidden'],
+            // Kills: checking files only, not dot-directories.
+            'dot dir' => ['.git/config', 'forbidden path: .git'],
+        ];
+    }
+
+    /** @dataProvider dotFiles */
+    public function testDotFilesAreRejected(string $file, string $reason): void
+    {
+        $entry = $this->tmpGame();
+        @mkdir(dirname($entry['path'].'/'.$file), 0777, true);
+        file_put_contents($entry['path'].'/'.$file, 'x');
+        $this->assertRejected($entry, $reason);
+    }
+
+    public function testBannedExtensionsMatchTheHostBridge(): void
+    {
+        // Kills: the PHP and JS lists drifting apart (one side would accept what the other refuses).
+        $js = (string) file_get_contents(__DIR__.'/../Assets/js/lanparty-host.js');
+        $this->assertSame(1, preg_match('#var BANNED_FILE = (/.+/i);#', $js, $m), 'BANNED_FILE not found in lanparty-host.js');
+        $this->assertSame(GameRegistry::BANNED_FILE, $m[1]);
+        $this->assertSame('/\\.(php\\d?|phtml|phar|phps|log|sqlite)$/i', GameRegistry::BANNED_FILE);
     }
 
     /** @dataProvider forbiddenFiles */

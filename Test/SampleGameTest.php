@@ -2,6 +2,7 @@
 require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
+use Kanboard\Plugin\LanParty\Model\GameRegistry;
 use Kanboard\Plugin\LanParty\Model\ManifestValidator;
 use Kanboard\Plugin\LanParty\Plugin;
 
@@ -99,7 +100,7 @@ class SampleGameTest extends Base
             foreach ($files as $relative) {
                 $this->assertTrue(ManifestValidator::isSafeRelativePath($relative), $slug.'/'.$relative);
                 $this->assertDoesNotMatchRegularExpression('/\s/', $relative, $slug.'/'.$relative);
-                $this->assertDoesNotMatchRegularExpression('/\.(php\d?|phtml|phar|log|sqlite)$/i', $relative, $slug.'/'.$relative);
+                $this->assertDoesNotMatchRegularExpression(GameRegistry::BANNED_FILE, $relative, $slug.'/'.$relative);
                 $this->assertFalse(is_link(self::GAMES.'/'.$slug.'/'.$relative), $slug.'/'.$relative);
                 foreach (explode('/', $slug.'/'.$relative) as $segment) {
                     $this->assertStringStartsNotWith('data', strtolower($segment), $slug.'/'.$relative);

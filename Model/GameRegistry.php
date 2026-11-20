@@ -10,7 +10,8 @@ use Kanboard\Core\Base;
 class GameRegistry extends Base
 {
     public const CONFIG_DISABLED = 'lanparty_disabled';
-    private const FORBIDDEN_EXTENSIONS = ['php', 'log', 'sqlite'];
+    /** Executed (PHP handlers) or refused by the web server. lanparty-host.js keeps the identical list. */
+    public const BANNED_FILE = '/\\.(php\\d?|phtml|phar|phps|log|sqlite)$/i';
 
     /** @var list<array>|null scan results, in registration order */
     private ?array $scanned = null;
@@ -143,8 +144,9 @@ class GameRegistry extends Base
     }
 
     /**
-     * Kanboard's nginx 404s any URI containing /data, and .php would execute: reject both. Symlinks are
-     * rejected outright so nothing can hide behind one.
+     * Kanboard's nginx 404s any URI containing /data, BANNED_FILE names would execute or be refused, and a
+     * dot-file (.htaccess) could reconfigure the server: reject all three. Symlinks are rejected outright so
+     * nothing can hide behind one.
      */
     private function folderErrors(string $path): array
     {
@@ -162,12 +164,12 @@ class GameRegistry extends Base
                     continue;
                 }
                 foreach (explode('/', $relative) as $segment) {
-                    if (self::startsWithData($segment)) {
+                    if (self::startsWithData($segment) || str_starts_with($segment, '.')) {
                         $errors[] = 'forbidden path: '.$relative;
                         continue 2;
                     }
                 }
-                if ($file->isFile() && in_array(strtolower($file->getExtension()), self::FORBIDDEN_EXTENSIONS, true)) {
+                if ($file->isFile() && preg_match(self::BANNED_FILE, $file->getFilename())) {
                     $errors[] = 'forbidden file: '.$relative;
                 }
             }

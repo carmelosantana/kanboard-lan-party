@@ -60,13 +60,17 @@ test('normalizeAssetPath accepts relative paths inside the game folder', () => {
   assert.equal(H.normalizeAssetPath('./x.js'), 'x.js');
   assert.equal(H.normalizeAssetPath('levels/./one.json'), 'levels/one.json');
   assert.equal(H.normalizeAssetPath('notes.php.txt'), 'notes.php.txt');
+  assert.equal(H.normalizeAssetPath('catalog.json'), 'catalog.json');
+  assert.equal(H.normalizeAssetPath('x.php10'), 'x.php10');
 });
 
 // Kills: dropping any one of the traversal, absolute, scheme, backslash, encoding, whitespace or .php checks.
 test('normalizeAssetPath rejects traversal, absolute paths, schemes and tricks', () => {
   const bad = ['../x', '/x', 'a/../../x', 'a/../x', '..', 'http://x', 'HTTPS://x', '//x', 'data:text/plain,hi',
     'javascript:alert(1)', 'a\\b', '..\\x', '%2e%2e/x', 'a%2fb', 'x?y', 'x#y', ' //x', 'a b', 'a\nb',
-    '', 'a//b', 'art/', '.', null, undefined, 42, {}, 'x'.repeat(513), 'x.php', 'a/b.PHP', 'shell.pHp'];
+    '', 'a//b', 'art/', '.', null, undefined, 42, {}, 'x'.repeat(513), 'x.php', 'a/b.PHP', 'shell.pHp',
+    // the registry's banned-extension list: php\d?|phtml|phar|phps|log|sqlite, any case
+    'x.php7', 'a/x.PHP5', 'x.phtml', 'x.Phar', 'x.phps', 'debug.log', 'scores.SQLITE'];
   for (const p of bad) assert.equal(H.normalizeAssetPath(p), null, JSON.stringify(p));
 });
 

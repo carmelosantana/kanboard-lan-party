@@ -23,6 +23,8 @@
   };
   var MAX_ARGS = 70000;
   var MAX_PATH = 512;
+  // Same list as GameRegistry::BANNED_FILE (a PHP test keeps them identical): executed or refused by the server.
+  var BANNED_FILE = /\.(php\d?|phtml|phar|phps|log|sqlite)$/i;
   var MAX_IN_FLIGHT = 8;
   var LOCAL_OPS = ['ready', 'exit', 'file']; // never touch the network, so the in-flight cap leaves them alone
   var MAX_SHARE_TEXT = 280;
@@ -49,12 +51,12 @@
   /**
    * A relative path inside the game folder, normalised ("./x.js" -> "x.js"), or null when unsafe: "..",
    * absolute paths, schemes (any ":"), backslashes, percent-encoding (WHATWG URLs read "%2e%2e" as ".."),
-   * query/fragment, whitespace and control characters, empty segments and `.php` files (the web server would
-   * execute them) are all refused.
+   * query/fragment, whitespace and control characters, empty segments and BANNED_FILE names (`.php` would
+   * execute) are all refused.
    */
   function normalizeAssetPath(path) {
     if (typeof path !== 'string' || path.length === 0 || path.length > MAX_PATH) return null;
-    if (/[\\%?#:\s\u0000-\u001f\u007f]/.test(path) || path.charAt(0) === '/' || /\.php$/i.test(path)) return null;
+    if (/[\\%?#:\s\u0000-\u001f\u007f]/.test(path) || path.charAt(0) === '/' || BANNED_FILE.test(path)) return null;
     var out = [];
     var parts = path.split('/');
     for (var i = 0; i < parts.length; i++) {
