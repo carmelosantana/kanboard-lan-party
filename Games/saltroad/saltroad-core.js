@@ -335,6 +335,7 @@
 
   /** Clamps every resource, loses spent camels and their loads, and ends the journey if the caravan is spent. */
   function settle(s) {
+    if (s.phase === 'over') return s; // at the market (or already stranded): the journey's books are closed
     if (s.strength <= 0 && s.camels > 0) {
       s.camels--;
       s.strength = 35;
@@ -561,8 +562,11 @@
     return r.rank > 0 ? 'Rank #' + r.rank + ' · your best ' + r.best : 'Your best ' + r.best;
   }
 
-  /** The saved {best, journey}; anything unreadable becomes an empty save, and a finished journey is dropped. */
-  function readSave(saved) {
+  /**
+   * The saved {best, journey}; anything unreadable becomes an empty save, and a finished journey is dropped.
+   * With `routes`, a journey on a route that no longer exists, or past its last leg, is dropped too.
+   */
+  function readSave(saved, routes) {
     const out = { best: {}, journey: null };
     if (!saved || typeof saved !== 'object') return out;
     if (saved.best && typeof saved.best === 'object' && !Array.isArray(saved.best)) {
@@ -578,7 +582,68 @@
         (j.phase !== 'event' || (j.card && own(CARDS, j.card.kind)))) {
       out.journey = j;
     }
+    if (out.journey && routes) {
+      const route = own(routes, j.level) ? routes[j.level] : null;
+      if (!route || j.wp < 0 || j.wp > route.waypoints.length - 2) out.journey = null;
+    }
     return out;
+  }
+
+  /** The warning shown before a new start replaces a saved journey; '' when there is none. */
+  function abandonNote(journey, routes) {
+    if (!journey) return '';
+    return 'This replaces your saved journey on ' + routeConfig(routes, journey.level).name + ' (day ' + journey.day + ').';
+  }
+
+  /**
+   * One save in flight at a time. push(payloadFn) sends now, or (while busy) remembers only the latest request,
+   * sent when the current one lands; payloadFn runs at send time, so a coalesced save carries the newest state.
+   * flush(payloadFn) does the same and resolves once nothing is in flight. Failed saves are swallowed.
+   */
+  function saveQueue(save) {
+    let busy = false;
+    let queued = null;
+    let waiters = [];
+    function send(payloadFn) {
+      busy = true;
+      let sent;
+      try { sent = Promise.resolve(save(payloadFn())); } catch (e) { sent = Promise.reject(e); }
+      sent.catch(function () {}).then(function () {
+        if (queued) {
+          const next = queued;
+          queued = null;
+          send(next);
+          return;
+        }
+        busy = false;
+        const done = waiters;
+        waiters = [];
+        done.forEach(function (resolve) { resolve(); });
+      });
+    }
+    function push(payloadFn) {
+      if (busy) queued = payloadFn;
+      else send(payloadFn);
+    }
+    return {
+      push: push,
+      flush: function (payloadFn) {
+        push(payloadFn);
+        return new Promise(function (resolve) { waiters.push(resolve); });
+      }
+    };
+  }
+
+  /** "12 mi, 3 water"; the camp hints are written from PACES and RATIONS so they cannot drift. */
+  function paceHint(key) {
+    const p = PACES[key];
+    if (p.miles === 0) return 'stay put, ' + p.water + ' water, recover';
+    return p.miles + ' mi, ' + p.water + ' water' + (p.strength < -3 ? ', wears camels and crew' : '');
+  }
+
+  function rationHint(key) {
+    const r = RATIONS[key];
+    return r.food + ' food' + (r.vigour > 0 ? ', crew perks up' : r.vigour < 0 ? ', crew flags' : '');
   }
 
   const api = {
@@ -619,7 +684,11 @@
     scoreBound: scoreBound,
     resultButtons: resultButtons,
     submitText: submitText,
-    readSave: readSave
+    readSave: readSave,
+    abandonNote: abandonNote,
+    saveQueue: saveQueue,
+    paceHint: paceHint,
+    rationHint: rationHint
   };
 
   if (typeof module !== 'undefined' && module.exports) {

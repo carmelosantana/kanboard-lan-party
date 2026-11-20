@@ -373,3 +373,101 @@ test('readSave accepts its own shape and shrugs off anything else', () => {
   assert.deepEqual(S.readSave({ v: 1, best: 'x', journey: { phase: 'camp' } }), { best: {}, journey: null });
   assert.deepEqual(S.readSave({ v: 1, best: { 1: 300 }, journey: Object.assign({}, s, { phase: 'over' }) }).journey, null);
 });
+
+// ── Fix round 1 ──────────────────────────────────────────────────────────────
+
+// Kills: settle() running after the market (I1): a caravan that arrives on its last breath scored as stranded.
+test('arriving at the market on the last vigour still delivers', () => {
+  const deck = S.buildDeck(SHORT, 'abc');
+  const last = SHORT.waypoints.length - 2;
+  const s = S.travelDay(parked({ wp: last, mi: 10, vigour: 2, water: 0, food: 0 }), SHORT, deck, STEADY_FULL);
+  assert.equal(s.end, 'delivered');
+  assert.equal(s.phase, 'over');
+  assert.ok(S.finalScore(s, SHORT) > 0);
+  assert.match(s.diary[s.diary.length - 1].text, /Gull Market/);
+});
+
+// Kills: a camel lost (and its load dropped) after the salt was already sold at the market (I1).
+test('a camel worn out on arrival day does not unsell the delivered salt', () => {
+  const deck = S.buildDeck(SHORT, 'abc');
+  const last = SHORT.waypoints.length - 2;
+  const s = S.travelDay(parked({ wp: last, mi: 10, strength: 3, salt: 48 }), SHORT, deck, { pace: 'hard', rations: 'full' });
+  assert.equal(s.end, 'delivered');
+  assert.equal(s.delivered, 48);
+  assert.equal(s.salt, s.delivered);
+  assert.match(s.diary[s.diary.length - 1].text, /sold 48 bars/);
+});
+
+// Kills: dropping the room check in meets() (M1): buying bars the camels cannot carry.
+test('the trader cannot sell bars the camels have no room for', () => {
+  const at = (salt) => S.currentChoices(parked({ salt, coin: 20, phase: 'event', card: { kind: 'trader', roll: 0 } }))[0].enabled;
+  assert.equal(at(43), true);
+  assert.equal(at(44), false);
+});
+
+// Kills: dropping the water cap in trade() (M1): a bar charged for skins that are already full.
+test('a post refuses water when the skins are full', () => {
+  const deck = S.buildDeck(SHORT, 'k3x9q2ab');
+  const s = S.travelDay(parked({ wp: 3, mi: 10 }), SHORT, deck, STEADY_FULL);
+  const full = Object.assign({}, s, { water: S.WATER_MAX });
+  assert.equal(S.trade(full, SHORT, 'water'), full);
+});
+
+// Kills: dropping readSave's number and event-card checks (M1), or accepting a waypoint past the route's end (M2).
+test('readSave drops journeys with broken numbers, unknown cards or a waypoint off the route', () => {
+  const s = fresh();
+  const keep = (j) => S.readSave({ v: 1, best: {}, journey: j }, ROUTES).journey;
+  assert.deepEqual(keep(s), s);
+  assert.equal(keep(Object.assign({}, s, { day: 1.5 })), null);
+  assert.equal(keep(Object.assign({}, s, { phase: 'event', card: { kind: 'nope', roll: 0 } })), null);
+  assert.equal(keep(Object.assign({}, s, { phase: 'event', card: null })), null);
+  assert.ok(keep(Object.assign({}, s, { phase: 'event', card: { kind: 'sandstorm', roll: 0.5 } })));
+  assert.equal(keep(Object.assign({}, s, { wp: SHORT.waypoints.length - 1 })), null, 'at the market is over, not resumable');
+  assert.equal(keep(Object.assign({}, s, { wp: 99 })), null);
+  assert.equal(keep(Object.assign({}, s, { wp: -1 })), null);
+  assert.equal(keep(Object.assign({}, s, { level: '9' })), null, 'a route that no longer exists');
+  assert.ok(keep(Object.assign({}, s, { wp: SHORT.waypoints.length - 2 })));
+});
+
+// Kills: starting over a saved journey without saying what is lost (M3).
+test('abandonNote names the journey a new start would replace, or nothing', () => {
+  assert.equal(S.abandonNote(null, ROUTES), '');
+  const j = Object.assign(S.newJourney(LONG, 'x'), { day: 30 });
+  assert.equal(S.abandonNote(j, ROUTES), 'This replaces your saved journey on The Long Road (day 30).');
+});
+
+// Kills: more than one save in flight (M4), lost coalesced saves, or a final save that is not awaited.
+test('saveQueue keeps one save in flight, coalesces the rest and resolves flush() after the last', async () => {
+  const sent = [];
+  const pending = [];
+  const q = S.saveQueue(function (payload) {
+    sent.push(payload);
+    return new Promise((resolve) => pending.push(resolve));
+  });
+  let state = 1;
+  const payload = () => ({ n: state });
+  q.push(payload);
+  state = 2; q.push(payload);
+  state = 3; q.push(payload);
+  assert.deepEqual(sent, [{ n: 1 }], 'one in flight');
+  let flushed = false;
+  const done = q.flush(payload).then(() => { flushed = true; });
+  pending.shift()();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(sent, [{ n: 1 }, { n: 3 }], 'the queued saves collapse into the latest state');
+  assert.equal(flushed, false);
+  pending.shift()();
+  await done;
+  assert.equal(flushed, true);
+  assert.equal(sent.length, 2);
+  const failing = S.saveQueue(() => Promise.reject({ code: 'unavailable' }));
+  await failing.flush(payload); // a failed save still lets the queue (and exit) move on
+});
+
+// Kills: pace and ration hints drifting from the numbers the rules use (M5).
+test('pace and ration hints are written from PACES and RATIONS', () => {
+  assert.equal(S.paceHint('steady'), S.PACES.steady.miles + ' mi, ' + S.PACES.steady.water + ' water');
+  assert.match(S.paceHint('hard'), new RegExp('^' + S.PACES.hard.miles + ' mi'));
+  assert.match(S.paceHint('rest'), /stay put/);
+  for (const k of Object.keys(S.RATIONS)) assert.match(S.rationHint(k), new RegExp('^' + S.RATIONS[k].food + ' food'));
+});
