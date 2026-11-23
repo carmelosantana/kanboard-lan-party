@@ -3,6 +3,7 @@ require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
 use Kanboard\Plugin\LanParty\Model\ManifestValidator;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 // One row per manifest rule; each row names the mutation of ManifestValidator that it kills.
 class ManifestValidatorTest extends Base
@@ -185,6 +186,7 @@ class ManifestValidatorTest extends Base
     }
 
     /** @dataProvider brokenRules */
+    #[DataProvider('brokenRules')]
     public function testEachBrokenRuleIsReportedAgainstItsField(string $field, callable $mutate): void
     {
         $errors = (new ManifestValidator())->validate($mutate(self::validManifest()));

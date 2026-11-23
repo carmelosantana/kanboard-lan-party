@@ -4,6 +4,7 @@ require_once 'tests/units/Base.php';
 use KanboardTests\units\Base;
 use Kanboard\Plugin\LanParty\Model\GameRegistry;
 use Kanboard\Plugin\LanParty\Plugin;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class GameRegistryRecordingLogger extends \Psr\Log\AbstractLogger
 {
@@ -182,6 +183,7 @@ class GameRegistryTest extends Base
     }
 
     /** @dataProvider dotFiles */
+    #[DataProvider('dotFiles')]
     public function testDotFilesAreRejected(string $file, string $reason): void
     {
         $entry = $this->tmpGame();
@@ -200,6 +202,7 @@ class GameRegistryTest extends Base
     }
 
     /** @dataProvider forbiddenFiles */
+    #[DataProvider('forbiddenFiles')]
     public function testForbiddenExtensionsAreRejectedRecursively(string $file): void
     {
         $entry = $this->tmpGame();
