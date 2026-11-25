@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 0.2.0 — 2026-11-25
 - Security: a score is accepted only with a single-use run token issued by the game page, bound to the player
   and game; each accepted score returns the next token. Scores stay client-reported.
 - Security: a player holds at most one unused run token per game; loading the game page again replaces it, so
