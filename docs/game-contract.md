@@ -113,7 +113,7 @@ working under that header and any stricter policy.
 Load it with a classic script tag as the **first** `<script>` of the entry page, before any of your own code:
 
 ```html
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.2.0"></script>
 ```
 
 The SDK checks that it runs in the launcher's sandboxed iframe and, when it does not, stops the page before any
@@ -211,7 +211,7 @@ instead and the call rejects `unavailable`. Check that every asset you load ship
 <p id="greeting">Loading…</p>
 <button type="button" id="click">Click</button>
 <button type="button" id="done">Submit and exit</button>
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.2.0"></script>
 <script src="hello.js?v=0.1.0"></script>
 </body>
 </html>
