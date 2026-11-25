@@ -71,7 +71,7 @@ class RunTokenTest extends Base
     public function testIssueReturnsAFreshTokenAndStoresOnlyItsHash(): void
     {
         $a = $this->runs()->issue(2, 'pop', self::NOW);
-        $b = $this->runs()->issue(2, 'pop', self::NOW);
+        $b = $this->runs()->issue(2, 'other', self::NOW);
         $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/D', $a);
         $this->assertNotSame($a, $b);
         $row = $this->container['db']->table(RunModel::TABLE)->eq('token_hash', hash('sha256', $a))->findOne();
@@ -89,6 +89,51 @@ class RunTokenTest extends Base
         $this->runs()->issue(2, 'pop', self::NOW);
         $this->assertSame(1, $this->container['db']->table(RunModel::TABLE)->eq('user_id', 2)->count());
         $this->assertSame(1, $this->container['db']->table(RunModel::TABLE)->eq('user_id', 3)->count(), 'other users are left alone');
+    }
+
+    // Kills: one token row per page view, so reloading grows the table without bound.
+    public function testIssueReplacesThePlayersUnusedTokenForThatGame(): void
+    {
+        $first = $this->runs()->issue(2, 'pop', self::NOW);
+        $other = $this->runs()->issue(2, 'other', self::NOW);
+        $theirs = $this->runs()->issue(3, 'pop', self::NOW);
+        $second = $this->runs()->issue(2, 'pop', self::NOW + 5);
+        $runs = fn () => $this->container['db']->table(RunModel::TABLE);
+        $this->assertSame(1, $runs()->eq('user_id', 2)->eq('game_slug', 'pop')->count());
+        $this->assertSame(3, $runs()->count(), 'other games and other players keep their tokens');
+        $this->assertSame('forbidden', $this->rejectCode(fn () => $this->submit($this->game(), 2, $first, 500, self::NOW + 10)));
+        $this->assertTrue($this->submit($this->game(), 2, $second, 500, self::NOW + 10)['accepted']);
+        $this->assertTrue($this->submit($this->game('other'), 2, $other, 500, self::NOW + 10)['accepted']);
+        $this->assertTrue($this->submit($this->game(), 3, $theirs, 500, self::NOW + 10)['accepted']);
+    }
+
+    // Kills: a schema that lets two token rows exist for one player and game (a concurrent issue would slip past).
+    public function testSchemaAllowsOneTokenRowPerPlayerAndGame(): void
+    {
+        $this->runs()->issue(2, 'pop', self::NOW);
+        $this->expectException(\PDOException::class);
+        $this->container['db']->getConnection()->prepare('INSERT INTO '.RunModel::TABLE.' (token_hash, user_id, game_slug, issued_at) VALUES (?, ?, ?, ?)')
+            ->execute([str_repeat('b', 64), 2, 'pop', self::NOW]);
+    }
+
+    // Kills: issue() committing the caller's transaction (submitRun stores the score and the next token together).
+    public function testIssueInsideATransactionLeavesItOpen(): void
+    {
+        $db = $this->container['db'];
+        $db->startTransaction();
+        $this->runs()->issue(2, 'pop', self::NOW);
+        $this->assertTrue($db->getConnection()->inTransaction());
+        $db->cancelTransaction();
+        $this->assertSame(0, $db->table(RunModel::TABLE)->count());
+    }
+
+    // Kills: the bridge losing its next token once issue() replaces the player's token.
+    public function testTheNextTokenAfterAScoreIsTheOnlyRow(): void
+    {
+        $out = $this->submit($this->game(), 2, $this->runs()->issue(2, 'pop', self::NOW));
+        $row = $this->container['db']->table(RunModel::TABLE)->eq('user_id', 2)->eq('game_slug', 'pop')->findAll();
+        $this->assertCount(1, $row);
+        $this->assertSame(hash('sha256', $out['run']), $row[0]['token_hash']);
     }
 
     // Kills: accepting a score with no token or an unknown one (the reproduced finding).

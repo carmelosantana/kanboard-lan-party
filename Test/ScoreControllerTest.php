@@ -22,7 +22,9 @@ class ScoreControllerTest extends Base
     private function submit(array $post): array
     {
         $slug = is_string($post['slug'] ?? null) ? $post['slug'] : '';
-        $post += ['run' => (new RunModel($this->container))->issue(2, $slug)];
+        if (! array_key_exists('run', $post)) { // issuing one would replace a token the caller passed in
+            $post['run'] = (new RunModel($this->container))->issue(2, $slug);
+        }
         $this->post($post);
         (new ScoreController($this->container))->submit();
         return $this->captured;

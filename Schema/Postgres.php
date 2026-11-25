@@ -26,7 +26,7 @@ function version_1($pdo)
     )');
 }
 
-// Single-use run tokens: a score is accepted only with one (stored as a SHA-256 hash).
+// Single-use run tokens: a score is accepted only with one (stored as a SHA-256 hash), at most one per player and game.
 function version_2($pdo)
 {
     $pdo->exec('CREATE TABLE IF NOT EXISTS lanparty_runs (
@@ -36,4 +36,5 @@ function version_2($pdo)
         issued_at BIGINT NOT NULL
     )');
     $pdo->exec('CREATE INDEX IF NOT EXISTS lanparty_runs_user_idx ON lanparty_runs(user_id, issued_at)');
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS lanparty_runs_user_game_idx ON lanparty_runs(user_id, game_slug)');
 }

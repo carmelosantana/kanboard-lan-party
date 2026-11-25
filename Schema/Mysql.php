@@ -29,7 +29,7 @@ function version_1($pdo)
     ) ENGINE=InnoDB CHARSET=utf8mb4');
 }
 
-// Single-use run tokens: a score is accepted only with one (stored as a SHA-256 hash).
+// Single-use run tokens: a score is accepted only with one (stored as a SHA-256 hash), at most one per player and game.
 function version_2($pdo)
 {
     $pdo->exec('CREATE TABLE IF NOT EXISTS lanparty_runs (
@@ -39,6 +39,7 @@ function version_2($pdo)
         issued_at BIGINT NOT NULL,
         PRIMARY KEY(token_hash),
         INDEX lanparty_runs_user_idx (user_id, issued_at),
+        UNIQUE INDEX lanparty_runs_user_game_idx (user_id, game_slug),
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB CHARSET=utf8mb4');
 }

@@ -4,6 +4,8 @@
 
 - Security: a score is accepted only with a single-use run token issued by the game page, bound to the player
   and game; each accepted score returns the next token. Scores stay client-reported.
+- Security: a player holds at most one unused run token per game; loading the game page again replaces it, so
+  reloads no longer add rows to `lanparty_runs`.
 - Manifest: optional `scoring.min_seconds` rejects scores sent sooner than that after the run began.
 - Settings → LAN Party: admins remove a player's scores for a game, or reset a game's board.
 

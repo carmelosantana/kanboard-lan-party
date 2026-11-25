@@ -13,18 +13,34 @@ class RunModel extends Base
     public const TABLE = 'lanparty_runs';
     public const TTL = 86400;
 
-    /** A new token for this player and game; the player's expired tokens are pruned on the way. */
+    /**
+     * A new token for this player and game. It replaces the player's unused token for that game (one row per player
+     * and game, held by a unique index), so reloading the page cannot grow the table; their expired tokens for other
+     * games are pruned on the way. Runs in the caller's transaction when one is open, else in its own.
+     */
     public function issue(int $userId, string $slug, ?int $now = null): string
     {
         $now ??= time();
-        $this->db->table(self::TABLE)->eq('user_id', $userId)->lt('issued_at', $now - self::TTL)->remove();
         $token = bin2hex(random_bytes(16));
-        $this->db->table(self::TABLE)->insert([
+        $own = ! $this->db->getConnection()->inTransaction();
+        if ($own) {
+            $this->db->startTransaction();
+        }
+        $this->db->table(self::TABLE)->eq('user_id', $userId)->lt('issued_at', $now - self::TTL)->remove();
+        $this->db->table(self::TABLE)->eq('user_id', $userId)->eq('game_slug', $slug)->remove();
+        // On a duplicate key (a concurrent issue for the same player and game) PicoDb rolls back and returns false.
+        $inserted = $this->db->table(self::TABLE)->insert([
             'token_hash' => hash('sha256', $token),
             'user_id' => $userId,
             'game_slug' => $slug,
             'issued_at' => $now,
         ]);
+        if ($inserted !== true) {
+            throw new ScoreRejected('unavailable', 'The run could not be started, reload the game page.');
+        }
+        if ($own) {
+            $this->db->closeTransaction();
+        }
         return $token;
     }
 
