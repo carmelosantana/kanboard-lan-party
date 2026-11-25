@@ -76,6 +76,31 @@ class ScoreModel extends Base
         return ['accepted' => true, 'rank' => $this->rankOf($slug, $order, $userId, $best), 'best' => $best];
     }
 
+    /**
+     * submit() for the bridge: needs an unused run token for this player and game (RunModel::claim), and returns
+     * the next one as `run`. The token is used up only when the score is stored.
+     */
+    public function submitRun(array $game, int $userId, mixed $run, mixed $score, ?string $level, ?string $seed, mixed $meta, ?int $now = null): array
+    {
+        $now ??= time();
+        if (empty($game['scoring'])) {
+            throw new ScoreRejected('unavailable', 'This game does not keep scores.');
+        }
+        $runs = new RunModel($this->container);
+        $slug = (string) $game['slug'];
+        $this->db->startTransaction();
+        try {
+            $runs->claim($userId, $slug, $run, (int) ($game['scoring']['min_seconds'] ?? 0), $now);
+            $out = $this->submit($game, $userId, $score, $level, $seed, $meta, $now);
+            $out['run'] = $runs->issue($userId, $slug, $now);
+        } catch (\Throwable $e) {
+            $this->db->cancelTransaction();
+            throw $e;
+        }
+        $this->db->closeTransaction();
+        return $out;
+    }
+
     public function leaderboard(array $game, string $period = 'all', int $limit = 10, ?int $now = null): array
     {
         if (empty($game['scoring'])) {
