@@ -138,6 +138,11 @@ class ManifestValidator
         if (! is_int($scoring['max'] ?? null) || $scoring['max'] < 1) {
             $errors[] = 'scoring.max: must be an integer of at least 1';
         }
+        // Optional: the shortest plausible run, in seconds, before a score is accepted (at most RunModel::TTL).
+        if (array_key_exists('min_seconds', $scoring)
+            && (! is_int($scoring['min_seconds']) || $scoring['min_seconds'] < 0 || $scoring['min_seconds'] > RunModel::TTL)) {
+            $errors[] = 'scoring.min_seconds: must be an integer from 0 to '.RunModel::TTL;
+        }
     }
 
     private function validateFiles(array &$errors, mixed $files): void

@@ -49,6 +49,7 @@ class ManifestValidatorTest extends Base
         $m['modes'] = ['realtime'];
         $m['players'] = ['min' => 2, 'max' => 16];
         $m['scoring']['order'] = 'low';
+        $m['scoring']['min_seconds'] = 30;
         $m['files'] = [['id' => 'doom-wad', 'label' => 'DOOM.WAD', 'accept' => ['.wad', '.WAD'], 'required' => true]];
         $this->assertSame([], (new ManifestValidator())->validate($m));
     }
@@ -168,6 +169,12 @@ class ManifestValidatorTest extends Base
             'scoring.max not int' => ['scoring.max', $set('scoring.max', 1.5)],
             // Kills: dropping the scoring.max >= 1 bound.
             'scoring.max zero' => ['scoring.max', $set('scoring.max', 0)],
+            // Kills: dropping the scoring.min_seconds integer check.
+            'scoring.min_seconds not int' => ['scoring.min_seconds', $set('scoring.min_seconds', '30')],
+            // Kills: dropping the scoring.min_seconds lower bound.
+            'scoring.min_seconds negative' => ['scoring.min_seconds', $set('scoring.min_seconds', -1)],
+            // Kills: dropping the scoring.min_seconds upper bound (a floor past the run token's lifetime).
+            'scoring.min_seconds over a day' => ['scoring.min_seconds', $set('scoring.min_seconds', 86401)],
             // Kills: dropping the files list check.
             'files not list' => ['files', $set('files', 'doom.wad')],
             // Kills: dropping the per-slot object check (a string slot).
