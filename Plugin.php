@@ -2,6 +2,7 @@
 namespace Kanboard\Plugin\LanParty;
 
 use Kanboard\Core\Plugin\Base;
+use Kanboard\Core\Security\Role;
 use Kanboard\Plugin\LanParty\Model\GameRegistry;
 
 class Plugin extends Base
@@ -29,6 +30,12 @@ class Plugin extends Base
         $this->route->addRoute('lanparty/scores/:slug', 'ScoreController', 'board', 'LanParty');
         $this->route->addRoute('lanparty/save', 'SaveController', 'save', 'LanParty');
         $this->route->addRoute('lanparty/load/:slug', 'SaveController', 'load', 'LanParty');
+
+        // Settings → LAN Party: admins remove a player's scores or reset a board (scores are client-reported).
+        $this->route->addRoute('lanparty/moderation', 'ModerationController', 'index', 'LanParty');
+        $this->route->addRoute('lanparty/moderation/remove', 'ModerationController', 'remove', 'LanParty');
+        $this->applicationAccessMap->add('ModerationController', '*', Role::APP_ADMIN);
+        $this->hook->on('template:config:sidebar', ['template' => 'LanParty:config/sidebar']);
     }
 
     public function getPluginName(): string        { return 'LanParty'; }

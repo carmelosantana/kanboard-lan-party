@@ -175,6 +175,33 @@ class ScoreModel extends Base
         return $best === null || $best === false ? null : (int) $best;
     }
 
+    /** Admin moderation: deletes one player's scores for a game, or the whole board when $userId is null. */
+    public function remove(string $slug, ?int $userId = null): int
+    {
+        // A PicoDb query is spent once run, so count and delete each get their own.
+        $query = function () use ($slug, $userId) {
+            $q = $this->db->table(self::TABLE)->eq('game_slug', $slug);
+            return $userId === null ? $q : $q->eq('user_id', $userId);
+        };
+        $count = $query()->count();
+        $query()->remove();
+        return $count;
+    }
+
+    /** id => display name of everyone with a score, for the moderation page. */
+    public function players(): array
+    {
+        $ids = array_map('intval', $this->db->table(self::TABLE)->distinct('user_id')->findAllByColumn('user_id'));
+        if ($ids === []) {
+            return [];
+        }
+        $names = [];
+        foreach ($this->db->table('users')->columns('id', 'name', 'username')->in('id', $ids)->asc('username')->findAll() as $u) {
+            $names[(int) $u['id']] = ($u['name'] ?? '') !== '' ? $u['name'] : $u['username'];
+        }
+        return $names;
+    }
+
     public function playedSlugs(int $userId): array
     {
         return array_values(array_unique($this->db->table(self::TABLE)->eq('user_id', $userId)->findAllByColumn('game_slug')));
