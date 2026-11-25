@@ -182,6 +182,19 @@ class LauncherControllerTest extends Base
         $this->assertStringContainsString('BSD-3-Clause', $html);
     }
 
+    // Kills: a scored game page without a run token for this player and game, or one on a game without scores.
+    public function testPlayButtonCarriesARunTokenForScoredGames(): void
+    {
+        $html = $this->render('game', ['slug' => 'arcade']);
+        $run = $this->playAttr($html, 'run');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/D', (string) $run);
+        $row = $this->container['db']->table('lanparty_runs')->eq('token_hash', hash('sha256', $run))->findOne();
+        $this->assertSame(2, (int) $row['user_id']);
+        $this->assertSame('arcade', $row['game_slug']);
+
+        $this->assertNull($this->playAttr($this->render('game', ['slug' => 'saltroad']), 'run'));
+    }
+
     // Kills: a leaderboard that is not server-rendered, or shows only one of the two periods.
     public function testGamePageLeaderboard(): void
     {

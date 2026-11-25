@@ -5,6 +5,7 @@ require_once __DIR__.'/EndpointHarness.php';
 use KanboardTests\units\Base;
 use Kanboard\Core\Controller\AccessForbiddenException;
 use Kanboard\Plugin\LanParty\Controller\ScoreController;
+use Kanboard\Plugin\LanParty\Model\RunModel;
 
 // Each test names the ScoreController mutation it kills.
 class ScoreControllerTest extends Base
@@ -17,8 +18,11 @@ class ScoreControllerTest extends Base
         $this->setUpEndpoints();
     }
 
+    /** POST with a fresh run token for the signed-in player unless the caller overrides or drops it. */
     private function submit(array $post): array
     {
+        $slug = is_string($post['slug'] ?? null) ? $post['slug'] : '';
+        $post += ['run' => (new RunModel($this->container))->issue(2, $slug)];
         $this->post($post);
         (new ScoreController($this->container))->submit();
         return $this->captured;
@@ -41,6 +45,8 @@ class ScoreControllerTest extends Base
     {
         $out = $this->submit(['slug' => 'arcade', 'score' => '640', 'level' => 'l-2', 'seed' => '', 'meta' => '{"combo":3}']);
         $this->assertSame(200, $out['status']);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/D', $out['data']['run'] ?? '', 'the next run token');
+        unset($out['data']['run']);
         $this->assertSame(['accepted' => true, 'rank' => 1, 'best' => 640], $out['data']);
         $row = $this->container['db']->table('lanparty_scores')->findOne();
         $this->assertSame(2, (int) $row['user_id']);
@@ -58,6 +64,19 @@ class ScoreControllerTest extends Base
         } finally {
             $this->assertSame(0, $this->rows());
         }
+    }
+
+    // Kills: accepting a score with no run token, or one already used (the max-score-without-playing finding).
+    public function testSubmitWithoutAValidRunTokenIsForbidden(): void
+    {
+        $this->submit(['slug' => 'arcade', 'score' => '1000', 'run' => null]);
+        $this->assertError('forbidden', 403);
+        $run = (new RunModel($this->container))->issue(2, 'arcade');
+        $this->submit(['slug' => 'arcade', 'score' => '10', 'run' => $run]);
+        $this->assertSame(200, $this->captured['status']);
+        $this->submit(['slug' => 'arcade', 'score' => '1000', 'run' => $run]);
+        $this->assertError('forbidden', 403);
+        $this->assertSame(1, $this->rows());
     }
 
     // Kills: submitting to a game the registry does not list (unknown or disabled) instead of 404.

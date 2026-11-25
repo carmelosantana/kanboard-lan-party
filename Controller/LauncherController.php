@@ -3,6 +3,7 @@ namespace Kanboard\Plugin\LanParty\Controller;
 
 use Kanboard\Controller\BaseController;
 use Kanboard\Core\Controller\PageNotFoundException;
+use Kanboard\Plugin\LanParty\Model\RunModel;
 use Kanboard\Plugin\LanParty\Model\ScoreModel;
 
 // GET lanparty (launcher: hero + rows of cards) and GET lanparty/game/:slug (detail page with Play).
@@ -60,6 +61,8 @@ class LauncherController extends BaseController
             ],
             'challenge' => $this->challenge($scores, $game),
             'csrf' => $this->token->getReusableCSRFToken(),
+            // A scored game's first run token; each accepted score returns the next.
+            'run' => isset($game['scoring']) ? (new RunModel($this->container))->issue($this->userSession->getId(), $slug) : null,
             'player' => $this->player(),
             // Absolute on application_url when it is set. Otherwise relative: Kanboard's fallback base is a fixed
             // http://localhost/, so the host resolves the link against the page's own address instead.

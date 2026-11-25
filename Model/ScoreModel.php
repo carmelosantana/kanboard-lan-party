@@ -25,13 +25,52 @@ class ScoreModel extends Base
 
     public function submit(array $game, int $userId, mixed $score, ?string $level, ?string $seed, mixed $meta, ?int $now = null): array
     {
+        $this->store($game, $userId, $score, $level, $seed, $meta, $now ?? time());
+        return $this->accepted($game, $userId);
+    }
+
+    /**
+     * submit() for the bridge: needs an unused run token for this player and game (RunModel::claim), and returns
+     * the next one as `run`. The token is used up only when the score is stored. Rank and best are read after the
+     * commit: AgentFilter swallows a SQL error, and PicoDb rolls back the open transaction on one.
+     */
+    public function submitRun(array $game, int $userId, mixed $run, mixed $score, ?string $level, ?string $seed, mixed $meta, ?int $now = null): array
+    {
         $now ??= time();
+        if (empty($game['scoring'])) {
+            throw new ScoreRejected('unavailable', 'This game does not keep scores.');
+        }
+        $runs = new RunModel($this->container);
+        $slug = (string) $game['slug'];
+        $this->db->startTransaction();
+        try {
+            $runs->claim($userId, $slug, $run, (int) ($game['scoring']['min_seconds'] ?? 0), $now);
+            $this->store($game, $userId, $score, $level, $seed, $meta, $now);
+            $next = $runs->issue($userId, $slug, $now);
+        } catch (\Throwable $e) {
+            $this->db->cancelTransaction();
+            throw $e;
+        }
+        $this->db->closeTransaction();
+        return $this->accepted($game, $userId) + ['run' => $next];
+    }
+
+    private function accepted(array $game, int $userId): array
+    {
+        $slug = (string) $game['slug'];
+        $order = $game['scoring']['order'] ?? 'high';
+        $best = $this->best($slug, $userId, $order);
+        return ['accepted' => true, 'rank' => $this->rankOf($slug, $order, $userId, $best), 'best' => $best];
+    }
+
+    // Validates and inserts one score row, or throws ScoreRejected.
+    private function store(array $game, int $userId, mixed $score, ?string $level, ?string $seed, mixed $meta, int $now): void
+    {
         if (empty($game['scoring'])) {
             throw new ScoreRejected('unavailable', 'This game does not keep scores.');
         }
         $slug = (string) $game['slug'];
         $max = (int) $game['scoring']['max'];
-        $order = $game['scoring']['order'] ?? 'high';
 
         if (! is_int($score) || $score < 0 || $score > $max) {
             throw new ScoreRejected('bad_request', 'Score must be a whole number from 0 to '.$max.'.');
@@ -71,34 +110,6 @@ class ScoreModel extends Base
             'meta' => $metaJson,
             'created_at' => $now,
         ]);
-
-        $best = $this->best($slug, $userId, $order);
-        return ['accepted' => true, 'rank' => $this->rankOf($slug, $order, $userId, $best), 'best' => $best];
-    }
-
-    /**
-     * submit() for the bridge: needs an unused run token for this player and game (RunModel::claim), and returns
-     * the next one as `run`. The token is used up only when the score is stored.
-     */
-    public function submitRun(array $game, int $userId, mixed $run, mixed $score, ?string $level, ?string $seed, mixed $meta, ?int $now = null): array
-    {
-        $now ??= time();
-        if (empty($game['scoring'])) {
-            throw new ScoreRejected('unavailable', 'This game does not keep scores.');
-        }
-        $runs = new RunModel($this->container);
-        $slug = (string) $game['slug'];
-        $this->db->startTransaction();
-        try {
-            $runs->claim($userId, $slug, $run, (int) ($game['scoring']['min_seconds'] ?? 0), $now);
-            $out = $this->submit($game, $userId, $score, $level, $seed, $meta, $now);
-            $out['run'] = $runs->issue($userId, $slug, $now);
-        } catch (\Throwable $e) {
-            $this->db->cancelTransaction();
-            throw $e;
-        }
-        $this->db->closeTransaction();
-        return $out;
     }
 
     public function leaderboard(array $game, string $period = 'all', int $limit = 10, ?int $now = null): array

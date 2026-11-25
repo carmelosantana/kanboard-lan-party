@@ -6,7 +6,7 @@
  *   request  {lp: 1, id, nonce, op, args}
  *   reply    {lp: 1, id, ok: true, result} | {lp: 1, id, ok: false, error: {code, message}}
  * A message is answered only when it comes from the game's iframe window and carries the nonce this page put
- * in the iframe's URL fragment (#lp=<nonce>). The game never sees the CSRF token or the session.
+ * in the iframe's URL fragment (#lp=<nonce>). The game never sees the CSRF token, the run token or the session.
  */
 (function () {
   'use strict';
@@ -108,7 +108,7 @@
   }
 
   /**
-   * The message handler for one open game. o: {iframe, nonce, endpoints: {score, scores, save, load}, csrf,
+   * The message handler for one open game. o: {iframe, nonce, endpoints: {score, scores, save, load}, csrf, run,
    * base, game: {slug, title, version}, player: {id, name, avatar_url}, challenge: {level, seed}|null,
    * share (game page URL), fetch, clipboard, onExit}.
    */
@@ -184,7 +184,14 @@
           score: a.score,
           level: a.level,
           seed: a.seed,
-          meta: a.meta === undefined ? undefined : JSON.stringify(a.meta)
+          meta: a.meta === undefined ? undefined : JSON.stringify(a.meta),
+          run: o.run
+        }).then(function (body) {
+          // The server hands back the next run's token; the game never sees it.
+          if (typeof body.run === 'string') o.run = body.run;
+          var result = {};
+          Object.keys(body).forEach(function (k) { if (k !== 'run') result[k] = body[k]; });
+          return result;
         });
       },
       leaderboard: function (a) {
@@ -333,6 +340,7 @@
       nonce: nonce,
       endpoints: parse(d.lpEndpoints, {}),
       csrf: d.lpCsrf,
+      run: d.lpRun,
       base: d.lpBase,
       game: game,
       player: parse(d.lpPlayer, null),
