@@ -153,6 +153,15 @@ At most 8 network calls (`asset`, `submitScore`, `leaderboard`, `save`, `load`, 
 per game; the 9th rejects `rate_limited` until one finishes. `ready()`, `file()` and `exit()` never touch the
 network and are always answered. Load assets one after another or in small batches.
 
+### Scores are client-reported
+
+The game computes its score in the browser, so the server cannot tell an earned score from an invented one: a
+player who loads the game page can send any score from 0 to `scoring.max`. This is an accepted limitation. The
+host sends each score with a single-use run token issued when the game page loads (one unused token per player
+and game; each accepted score returns the next), so a score cannot be replayed or posted by a script that never
+loads the page, and `scoring.min_seconds` sets a floor on how soon after the run began a score is accepted.
+Neither checks the score itself. Admins moderate the boards under **Settings → LAN Party**.
+
 ### Asset fetches
 
 `asset(path)` fetches `base_url + path` from the launcher page without cookies and without following

@@ -6,6 +6,8 @@
   and game; each accepted score returns the next token. Scores stay client-reported.
 - Security: a player holds at most one unused run token per game; loading the game page again replaces it, so
   reloads no longer add rows to `lanparty_runs`.
+- Docs: README and the game contract state that a player who loads the game page can still post any score up
+  to `scoring.max`; the run token stops replays and blind scripted posts, and admins moderate the boards.
 - Manifest: optional `scoring.min_seconds` rejects scores sent sooner than that after the run began.
 - Settings → LAN Party: admins remove a player's scores for a game, or reset a game's board.
 
