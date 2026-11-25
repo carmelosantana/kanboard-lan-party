@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Security: a score is accepted only with a single-use run token issued by the game page, bound to the player
+  and game; each accepted score returns the next token. Scores stay client-reported.
+- Manifest: optional `scoring.min_seconds` rejects scores sent sooner than that after the run began.
+- Settings → LAN Party: admins remove a player's scores for a game, or reset a game's board.
+
 ## 0.1.0 — 2026-11-20
 
 - Game launcher page with rows of game cards, a hero banner and per-game pages.
