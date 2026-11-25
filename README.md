@@ -53,6 +53,14 @@ Four original games ship in `Games/`:
 Every game keeps a best-per-player leaderboard (all time and this week), saves progress per player, and can
 share a challenge link that reopens the same level and seed.
 
+Scores are client-reported, and that is an accepted limitation: the game in the browser computes them, so a
+player who loads a game page can send any score from 0 to the game's `scoring.max`, earned or not. The server
+accepts a score only with a single-use run token from the game page (one unused token per player and game, and,
+when the game's manifest sets `scoring.min_seconds`, not sooner than that after the run began). That stops
+replaying a score and scripted posting without loading the page; it does not check that a score was earned.
+Admins moderate the boards under **Settings → LAN Party**: remove one player's scores for a game, or reset a
+game's board.
+
 ### Adding a game
 
 A game is a folder of static files (`game.json`, an entry page, cover art) that runs in a sandboxed iframe and

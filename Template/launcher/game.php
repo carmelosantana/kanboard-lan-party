@@ -16,6 +16,7 @@
                 data-lp-slug="<?= $this->text->e($game['slug']) ?>"
                 data-lp-src="<?= $this->text->e($this->url->dir().$game['base_url'].$game['entry']) ?>"
                 data-lp-csrf="<?= $this->text->e($csrf) ?>"
+                <?php if ($run !== null): ?>data-lp-run="<?= $this->text->e($run) ?>"<?php endif ?>
                 data-lp-endpoints="<?= $this->text->e(json_encode($endpoints, JSON_UNESCAPED_SLASHES)) ?>"
                 data-lp-base="<?= $this->text->e($this->url->dir().$game['base_url']) ?>"
                 data-lp-game="<?= $this->text->e(json_encode(['slug' => $game['slug'], 'title' => $game['title'], 'version' => $game['version']], JSON_UNESCAPED_SLASHES)) ?>"

@@ -10,7 +10,7 @@ class PluginVersionTest extends Base
     public function testVersionsAgree(): void
     {
         $json = json_decode(file_get_contents(__DIR__.'/../plugin.json'), true);
-        $this->assertSame('0.1.0', $json['version']);
+        $this->assertSame('0.2.0', $json['version']);
         $this->assertSame($json['version'], (new Plugin($this->container))->getPluginVersion());
         $this->assertSame([], $json['requires']);
         $this->assertSame(

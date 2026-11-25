@@ -40,6 +40,7 @@ function setup(opts = {}) {
     iframe: { contentWindow: frameWin }, nonce: NONCE, endpoints: ENDPOINTS, csrf: 'tok123',
     base: '/plugins/scored/Games/arcade/', player: PLAYER, game: GAME, share: SHARE,
     challenge: opts.challenge === undefined ? null : opts.challenge,
+    run: opts.run,
     fetch, clipboard, onExit: () => { exited++; },
   });
   // Sends a request as the game would and waits for the host to settle it.
@@ -287,6 +288,26 @@ test('submitScore omits absent optional fields', async () => {
   const { send, calls } = setup({ respond: () => res(200, { accepted: true, rank: 1, best: 5 }) });
   await send('submitScore', { score: 5 });
   assert.deepEqual(form(calls[0].init), { slug: 'arcade', score: '5', csrf_token: 'tok123' });
+});
+
+// Kills: not posting the page's run token, handing it to the game, or not switching to the next one the server sends.
+test('submitScore posts the run token and moves on to the next one', async () => {
+  const replies = [{ accepted: true, rank: 1, best: 5, run: 'next1' }, { accepted: true, rank: 1, best: 6, run: 'next2' }];
+  const { send, calls } = setup({ run: 'first', respond: () => res(200, replies.shift()) });
+  const r = await send('submitScore', { score: 5 });
+  assert.deepEqual(r.msg.result, { accepted: true, rank: 1, best: 5 });
+  assert.equal(form(calls[0].init).run, 'first');
+  await send('submitScore', { score: 6 });
+  assert.equal(form(calls[1].init).run, 'next1');
+});
+
+// Kills: dropping the run token when a score is rejected (the server keeps it for the next try).
+test('submitScore keeps the run token after a rejected score', async () => {
+  const replies = [res(400, { error: { code: 'bad_request', message: 'too short' } }), res(200, { accepted: true, rank: 1, best: 5, run: 'n' })];
+  const { send, calls } = setup({ run: 'first', respond: () => replies.shift() });
+  assert.equal((await send('submitScore', { score: 5 })).msg.error.code, 'bad_request');
+  await send('submitScore', { score: 5 });
+  assert.equal(form(calls[1].init).run, 'first');
 });
 
 // Kills: posting a score that is not a number (form encoding would turn objects into "[object Object]").

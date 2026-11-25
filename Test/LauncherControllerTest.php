@@ -182,6 +182,31 @@ class LauncherControllerTest extends Base
         $this->assertStringContainsString('BSD-3-Clause', $html);
     }
 
+    // Kills: a scored game page without a run token for this player and game, or one on a game without scores.
+    public function testPlayButtonCarriesARunTokenForScoredGames(): void
+    {
+        $html = $this->render('game', ['slug' => 'arcade']);
+        $run = $this->playAttr($html, 'run');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/D', (string) $run);
+        $row = $this->container['db']->table('lanparty_runs')->eq('token_hash', hash('sha256', $run))->findOne();
+        $this->assertSame(2, (int) $row['user_id']);
+        $this->assertSame('arcade', $row['game_slug']);
+
+        $this->assertNull($this->playAttr($this->render('game', ['slug' => 'saltroad']), 'run'));
+    }
+
+    // Kills: every page view adding a token row (an authenticated user could grow lanparty_runs without bound).
+    public function testReloadingTheGamePageReplacesTheRunToken(): void
+    {
+        $first = $this->playAttr($this->render('game', ['slug' => 'arcade']), 'run');
+        $second = $this->playAttr($this->render('game', ['slug' => 'arcade']), 'run');
+        $this->assertNotSame($first, $second);
+        $runs = $this->container['db']->table('lanparty_runs');
+        $this->assertSame(1, $runs->eq('user_id', 2)->eq('game_slug', 'arcade')->count());
+        $this->assertSame(0, $this->container['db']->table('lanparty_runs')->eq('token_hash', hash('sha256', $first))->count());
+        $this->assertSame(1, $this->container['db']->table('lanparty_runs')->eq('token_hash', hash('sha256', $second))->count());
+    }
+
     // Kills: a leaderboard that is not server-rendered, or shows only one of the two periods.
     public function testGamePageLeaderboard(): void
     {

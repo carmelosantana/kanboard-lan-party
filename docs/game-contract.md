@@ -65,7 +65,7 @@ the start (browsers read it as `/`), and so are `:`, `%`, `?` and `#`. Keep file
 | `art.cover` | Required relative path. `art.hero` is optional. Art carries no text: the launcher draws the title over the card and the title and tagline over the hero, so a baked-in wordmark shows twice. |
 | `players.min`, `players.max` | Integers with 1 ≤ min ≤ max ≤ 16. |
 | `modes` | Non-empty list drawn from `solo`, `async`, `realtime`. |
-| `scoring` | Optional; a game without it has no leaderboard and `submitScore()` rejects `unavailable`. `order` is `high` or `low`; `unit` is a label of at most 12 characters; `max` is an integer ≥ 1. |
+| `scoring` | Optional; a game without it has no leaderboard and `submitScore()` rejects `unavailable`. `order` is `high` or `low`; `unit` is a label of at most 12 characters; `max` is an integer ≥ 1; `min_seconds` (optional, 0 to 86400) is the shortest plausible run, and a score sent sooner after the run began is rejected `bad_request`. |
 | `files` | Optional list of admin-supplied file slots `{ "id", "label", "accept": [".wad"], "required": true }` (`id` follows the slug pattern). Originals use `[]`. |
 
 The registry adds `plugin` (the owning plugin) and `base_url` (`plugins/<Plugin>/Games/<slug>/`); anything the
@@ -113,7 +113,7 @@ working under that header and any stricter policy.
 Load it with a classic script tag as the **first** `<script>` of the entry page, before any of your own code:
 
 ```html
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.2.0"></script>
 ```
 
 The SDK checks that it runs in the launcher's sandboxed iframe and, when it does not, stops the page before any
@@ -131,7 +131,7 @@ It defines a global `LanParty`. Every call returns a Promise. Call `ready()` fir
 | `ready()` | `{ player: {id, name, avatar_url}, game: {slug, title, version}, challenge: {level, seed} \| null }` | `challenge` is set when the game was opened from a challenge link. |
 | `asset(path)` | `ArrayBuffer` of a file in the game folder | Decode text with `new TextDecoder().decode(buf)`. See "Asset fetches" below. |
 | `file(id)` | `ArrayBuffer` of an admin file slot | Phase 1 serves no slots: always rejects `missing` (`bad_request` if `id` is not a string). |
-| `submitScore({score, level?, seed?, meta?})` | `{ accepted: true, rank, best }` | `score` an integer from 0 to `scoring.max`; `level` at most 32 and `seed` at most 64 characters of `[A-Za-z0-9_.-]`; `meta` any JSON of at most 1 KB. One score per player per game every 5 seconds. `rank` is the player's place on the all-time board (0 for agent users, who are kept off the boards), `best` their best score. |
+| `submitScore({score, level?, seed?, meta?})` | `{ accepted: true, rank, best }` | `score` an integer from 0 to `scoring.max`; `level` at most 32 and `seed` at most 64 characters of `[A-Za-z0-9_.-]`; `meta` any JSON of at most 1 KB. One score per player per game every 5 seconds. Scores are client-reported and moderated: the host sends each one with a single-use run token from the game page (the game never sees it), and admins can remove scores. `rank` is the player's place on the all-time board (0 for agent users, who are kept off the boards), `best` their best score. |
 | `leaderboard({period?, limit?})` | `[{rank, user_id, name, score, level, date}]` | `period` `all` (default) or `week` (last 7 days); `limit` an integer ≥ 1, default 10, capped at 100. One row per player (their best; a tie goes to whoever got there first). `name` is the display name, or the username when a user has none. `date` is a Unix timestamp. Agent users are left out when the Agents plugin is installed. |
 | `save(obj)` | `{ saved: true }` | Stores one JSON value per player per game, at most 64 KB as JSON; a new save replaces the old one. |
 | `load()` | the saved value, or `null` | |
@@ -143,7 +143,7 @@ Every rejection is `{ code, message }`, with `code` one of:
 | Code | Meaning |
 |---|---|
 | `bad_request` | The arguments are wrong: an unsafe path, a score out of range, malformed level/seed/meta, data that is not JSON. |
-| `forbidden` | The request was refused, for example an expired session (the request was redirected to the login page). |
+| `forbidden` | The request was refused, for example an expired session (the request was redirected to the login page), or a score without a valid run token (reload the game page). |
 | `missing` | The game, asset or file slot does not exist. |
 | `rate_limited` | A score less than 5 seconds after the last one, or more than 8 network calls in flight. |
 | `too_large` | The call's arguments exceed about 70 KB of JSON, or a save exceeds 64 KB. |
@@ -152,6 +152,15 @@ Every rejection is `{ code, message }`, with `code` one of:
 At most 8 network calls (`asset`, `submitScore`, `leaderboard`, `save`, `load`, `share`) may be pending at once
 per game; the 9th rejects `rate_limited` until one finishes. `ready()`, `file()` and `exit()` never touch the
 network and are always answered. Load assets one after another or in small batches.
+
+### Scores are client-reported
+
+The game computes its score in the browser, so the server cannot tell an earned score from an invented one: a
+player who loads the game page can send any score from 0 to `scoring.max`. This is an accepted limitation. The
+host sends each score with a single-use run token issued when the game page loads (one unused token per player
+and game; each accepted score returns the next), so a score cannot be replayed or posted by a script that never
+loads the page, and `scoring.min_seconds` sets a floor on how soon after the run began a score is accepted.
+Neither checks the score itself. Admins moderate the boards under **Settings → LAN Party**.
 
 ### Asset fetches
 
@@ -202,7 +211,7 @@ instead and the call rejects `unavailable`. Check that every asset you load ship
 <p id="greeting">Loading…</p>
 <button type="button" id="click">Click</button>
 <button type="button" id="done">Submit and exit</button>
-<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.1.0"></script>
+<script src="../../../LanParty/Assets/js/lanparty-sdk.js?v=0.2.0"></script>
 <script src="hello.js?v=0.1.0"></script>
 </body>
 </html>

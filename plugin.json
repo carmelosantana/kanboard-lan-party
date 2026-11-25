@@ -1,7 +1,7 @@
 {
     "name": "LanParty",
     "description": "A game launcher with leaderboards and challenges for your team.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "author": "Carmelo Santana",
     "homepage": "https://github.com/carmelosantana/kanboard-lan-party",
     "license": "MIT",

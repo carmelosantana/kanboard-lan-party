@@ -5,7 +5,7 @@ use Kanboard\Controller\BaseController;
 use Kanboard\Plugin\LanParty\Model\ScoreModel;
 use Kanboard\Plugin\LanParty\Model\ScoreRejected;
 
-// POST lanparty/score (form: slug, score, level, seed, meta JSON, csrf_token) and GET lanparty/scores/:slug.
+// POST lanparty/score (form: slug, score, level, seed, meta JSON, run, csrf_token) and GET lanparty/scores/:slug.
 class ScoreController extends BaseController
 {
     use JsonErrors;
@@ -19,9 +19,10 @@ class ScoreController extends BaseController
             if (is_string($score) && preg_match('/^-?\d{1,18}$/D', $score)) {
                 $score = (int) $score;
             }
-            $out = (new ScoreModel($this->container))->submit(
+            $out = (new ScoreModel($this->container))->submitRun(
                 $game,
                 $this->userSession->getId(),
+                $this->request->getRawValue('run'),
                 $score,
                 $this->optionalString('level'),
                 $this->optionalString('seed'),

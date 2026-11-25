@@ -1,7 +1,7 @@
 <?php
 namespace Kanboard\Plugin\LanParty\Schema;
 
-const VERSION = 1;
+const VERSION = 2;
 
 function version_1($pdo)
 {
@@ -26,4 +26,18 @@ function version_1($pdo)
         PRIMARY KEY(user_id, game_slug),
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )');
+}
+
+// Single-use run tokens: a score is accepted only with one (stored as a SHA-256 hash), at most one per player and game.
+function version_2($pdo)
+{
+    $pdo->exec('CREATE TABLE IF NOT EXISTS lanparty_runs (
+        "token_hash" CHAR(64) PRIMARY KEY,
+        "user_id" INTEGER NOT NULL,
+        "game_slug" VARCHAR(32) NOT NULL,
+        "issued_at" INTEGER NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS lanparty_runs_user_idx ON lanparty_runs(user_id, issued_at)');
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS lanparty_runs_user_game_idx ON lanparty_runs(user_id, game_slug)');
 }

@@ -14,6 +14,7 @@ trait EndpointHarness
     {
         require_once __DIR__.'/../Schema/'.ucfirst(DB_DRIVER).'.php'; // the schema for the suite's database
         \Kanboard\Plugin\LanParty\Schema\version_1($this->container['db']->getConnection());
+        \Kanboard\Plugin\LanParty\Schema\version_2($this->container['db']->getConnection());
         $this->container['logger'] = $this->createMock(\Psr\Log\LoggerInterface::class);
         (new UserModel($this->container))->create(['username' => 'amy', 'name' => 'Amy', 'role' => Role::APP_USER]); // 2
         $this->container['userSession']->initialize($this->container['userModel']->getById(2));
